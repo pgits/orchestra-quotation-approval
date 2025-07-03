@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Entity xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>cr_hardwarequotationapproval</Name>
+  <DisplayName>Hardware Quotation Approval</DisplayName>
+  <PluralName>Hardware Quotation Approvals</PluralName>
+  <Description>Stores hardware quotation approval decisions and history</Description>
+  <OwnershipType>UserOwned</OwnershipType>
+  <PrimaryAttribute>cr_quotationid</PrimaryAttribute>
+  
+  <Attributes>
+    <!-- Primary Key -->
+    <Attribute>
+      <Name>cr_hardwarequotationapprovalid</Name>
+      <Type>Uniqueidentifier</Type>
+      <DisplayName>Approval ID</DisplayName>
+      <Description>Unique identifier for the approval record</Description>
+      <IsPrimaryId>true</IsPrimaryId>
+      <RequiredLevel>SystemRequired</RequiredLevel>
+    </Attribute>
+    
+    <!-- Quotation Details -->
+    <Attribute>
+      <Name>cr_quotationid</Name>
+      <Type>String</Type>
+      <MaxLength>100</MaxLength>
+      <DisplayName>Quotation ID</DisplayName>
+      <Description>Reference to the quotation being approved</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <IsPrimaryName>true</IsPrimaryName>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_customername</Name>
+      <Type>String</Type>
+      <MaxLength>200</MaxLength>
+      <DisplayName>Customer Name</DisplayName>
+      <Description>Name of the customer for this quotation</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_totalamount</Name>
+      <Type>Money</Type>
+      <DisplayName>Total Amount</DisplayName>
+      <Description>Total quotation amount</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <MinValue>0</MinValue>
+      <MaxValue>1000000000</MaxValue>
+    </Attribute>
+    
+    <!-- Decision Information -->
+    <Attribute>
+      <Name>cr_decision</Name>
+      <Type>Picklist</Type>
+      <DisplayName>Decision</DisplayName>
+      <Description>Approval decision made</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <OptionSet>
+        <Options>
+          <Option Value="1" Label="Approved" />
+          <Option Value="2" Label="Rejected" />
+          <Option Value="3" Label="Pending Information" />
+          <Option Value="4" Label="Escalated" />
+        </Options>
+      </OptionSet>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_decisiondate</Name>
+      <Type>DateTime</Type>
+      <DisplayName>Decision Date</DisplayName>
+      <Description>Date and time when the decision was made</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <Format>DateAndTime</Format>
+      <DateTimeBehavior>UserLocal</DateTimeBehavior>
+    </Attribute>
+    
+    <!-- Approver Information -->
+    <Attribute>
+      <Name>cr_approverid</Name>
+      <Type>Lookup</Type>
+      <DisplayName>Approver</DisplayName>
+      <Description>User who made the approval decision</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <Targets>systemuser</Targets>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_approvername</Name>
+      <Type>String</Type>
+      <MaxLength>200</MaxLength>
+      <DisplayName>Approver Name</DisplayName>
+      <Description>Name of the approver</Description>
+      <RequiredLevel>None</RequiredLevel>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_approveremail</Name>
+      <Type>String</Type>
+      <MaxLength>200</MaxLength>
+      <DisplayName>Approver Email</DisplayName>
+      <Description>Email of the approver</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <Format>Email</Format>
+    </Attribute>
+    
+    <!-- Approval Details -->
+    <Attribute>
+      <Name>cr_approvalnotes</Name>
+      <Type>Memo</Type>
+      <MaxLength>2000</MaxLength>
+      <DisplayName>Approval Notes</DisplayName>
+      <Description>Additional notes provided during approval</Description>
+      <RequiredLevel>None</RequiredLevel>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_rejectionreason</Name>
+      <Type>Picklist</Type>
+      <DisplayName>Rejection Reason</DisplayName>
+      <Description>Reason for rejection if applicable</Description>
+      <RequiredLevel>None</RequiredLevel>
+      <OptionSet>
+        <Options>
+          <Option Value="1" Label="Budget Exceeded" />
+          <Option Value="2" Label="Specifications Mismatch" />
+          <Option Value="3" Label="Vendor Issues" />
+          <Option Value="4" Label="Timing Issues" />
+          <Option Value="5" Label="Better Alternative" />
+          <Option Value="6" Label="Other" />
+        </Options>
+      </OptionSet>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_customrejectionreason</Name>
+      <Type>String</Type>
+      <MaxLength>500</MaxLength>
+      <DisplayName>Custom Rejection Reason</DisplayName>
+      <Description>Custom reason if 'Other' is selected</Description>
+      <RequiredLevel>None</RequiredLevel>
+    </Attribute>
+    
+    <!-- Status Tracking -->
+    <Attribute>
+      <Name>cr_status</Name>
+      <Type>Picklist</Type>
+      <DisplayName>Status</DisplayName>
+      <Description>Current status of the approval</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <OptionSet>
+        <Options>
+          <Option Value="1" Label="Active" />
+          <Option Value="2" Label="Completed" />
+          <Option Value="3" Label="Cancelled" />
+          <Option Value="4" Label="Expired" />
+        </Options>
+      </OptionSet>
+      <DefaultValue>1</DefaultValue>
+    </Attribute>
+    
+    <!-- Requester Information -->
+    <Attribute>
+      <Name>cr_requesterid</Name>
+      <Type>String</Type>
+      <MaxLength>200</MaxLength>
+      <DisplayName>Requester ID</DisplayName>
+      <Description>ID of the person who requested the approval</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+    </Attribute>
+    
+    <!-- Callback Information -->
+    <Attribute>
+      <Name>cr_callbackurl</Name>
+      <Type>String</Type>
+      <MaxLength>500</MaxLength>
+      <DisplayName>Callback URL</DisplayName>
+      <Description>URL for callback notifications</Description>
+      <RequiredLevel>None</RequiredLevel>
+      <Format>Url</Format>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_callbackstatus</Name>
+      <Type>Picklist</Type>
+      <DisplayName>Callback Status</DisplayName>
+      <Description>Status of callback notification</Description>
+      <RequiredLevel>None</RequiredLevel>
+      <OptionSet>
+        <Options>
+          <Option Value="1" Label="Pending" />
+          <Option Value="2" Label="Success" />
+          <Option Value="3" Label="Failed" />
+          <Option Value="4" Label="Retrying" />
+        </Options>
+      </OptionSet>
+    </Attribute>
+    
+    <!-- Hardware Details (JSON) -->
+    <Attribute>
+      <Name>cr_hardwaredetails</Name>
+      <Type>Memo</Type>
+      <MaxLength>10000</MaxLength>
+      <DisplayName>Hardware Details</DisplayName>
+      <Description>JSON containing hardware items and details</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+    </Attribute>
+    
+    <!-- Urgency Level -->
+    <Attribute>
+      <Name>cr_urgencylevel</Name>
+      <Type>Picklist</Type>
+      <DisplayName>Urgency Level</DisplayName>
+      <Description>Priority of the approval request</Description>
+      <RequiredLevel>None</RequiredLevel>
+      <OptionSet>
+        <Options>
+          <Option Value="1" Label="Low" />
+          <Option Value="2" Label="Normal" />
+          <Option Value="3" Label="Medium" />
+          <Option Value="4" Label="High" />
+          <Option Value="5" Label="Critical" />
+        </Options>
+      </OptionSet>
+      <DefaultValue>2</DefaultValue>
+    </Attribute>
+  </Attributes>
+  
+  <!-- Relationships -->
+  <Relationships>
+    <Relationship>
+      <Name>cr_approver_systemuser</Name>
+      <ReferencedEntity>systemuser</ReferencedEntity>
+      <ReferencingAttribute>cr_approverid</ReferencingAttribute>
+      <RelationshipType>ManyToOne</RelationshipType>
+    </Relationship>
+  </Relationships>
+  
+  <!-- Security -->
+  <EnableAudit>true</EnableAudit>
+  <IsActivity>false</IsActivity>
+  <IsBusinessProcessEnabled>true</IsBusinessProcessEnabled>
+  
+  <!-- Views -->
+  <Views>
+    <View>
+      <Name>Active Approvals</Name>
+      <ViewType>Public</ViewType>
+      <FetchXml>
+        <![CDATA[
+        <fetch>
+          <entity name="cr_hardwarequotationapproval">
+            <attribute name="cr_quotationid" />
+            <attribute name="cr_customername" />
+            <attribute name="cr_totalamount" />
+            <attribute name="cr_decision" />
+            <attribute name="cr_approvername" />
+            <attribute name="cr_decisiondate" />
+            <attribute name="cr_urgencylevel" />
+            <filter>
+              <condition attribute="cr_status" operator="eq" value="1" />
+            </filter>
+            <order attribute="cr_urgencylevel" descending="true" />
+            <order attribute="cr_decisiondate" descending="true" />
+          </entity>
+        </fetch>
+        ]]>
+      </FetchXml>
+    </View>
+  </Views>
+</Entity>

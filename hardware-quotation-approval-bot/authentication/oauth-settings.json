@@ -1,0 +1,63 @@
+{
+  "authentication": {
+    "provider": "AzureAD",
+    "tenantId": "33a7afba-68df-4fb5-84ba-abd928569b69",
+    "clientId": "{{CLIENT_ID}}",
+    "clientSecret": "{{CLIENT_SECRET}}",
+    "authority": "https://login.microsoftonline.com/{{TENANT_ID}}",
+    "scopes": {
+      "default": [
+        "api://copilot-studio-quotation-approval/access_as_user"
+      ],
+      "dataverse": [
+        "https://{{ORGANIZATION}}.crm.dynamics.com/user_impersonation"
+      ],
+      "graph": [
+        "User.Read",
+        "email",
+        "profile"
+      ],
+      "teams": [
+        "https://api.spaces.skype.com/Chat.ReadWrite",
+        "https://api.spaces.skype.com/ChannelMessage.Send"
+      ]
+    }
+  },
+  "tokenCache": {
+    "enabled": true,
+    "cacheLocation": "memory",
+    "storeEncrypted": true,
+    "ttl": 3600
+  },
+  "singleSignOn": {
+    "enabled": true,
+    "consentPrompt": "consent",
+    "domainHint": "{{DOMAIN}}"
+  },
+  "roleMapping": {
+    "QuotationApprover": {
+      "defaultLimit": 5000,
+      "permissions": ["approve", "reject", "request_info"]
+    },
+    "SeniorQuotationApprover": {
+      "defaultLimit": 50000,
+      "permissions": ["approve", "reject", "request_info", "escalate"]
+    },
+    "ApprovalAdministrator": {
+      "defaultLimit": -1,
+      "permissions": ["approve", "reject", "request_info", "escalate", "manage_limits", "view_all"]
+    }
+  },
+  "security": {
+    "requireMfa": false,
+    "allowedIpRanges": [],
+    "sessionTimeout": 28800,
+    "enableAuditLog": true
+  },
+  "endpoints": {
+    "tokenEndpoint": "https://login.microsoftonline.com/{{TENANT_ID}}/oauth2/v2.0/token",
+    "authorizeEndpoint": "https://login.microsoftonline.com/{{TENANT_ID}}/oauth2/v2.0/authorize",
+    "userInfoEndpoint": "https://graph.microsoft.com/v1.0/me",
+    "logoutEndpoint": "https://login.microsoftonline.com/{{TENANT_ID}}/oauth2/v2.0/logout"
+  }
+}

@@ -1,0 +1,335 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2016-06-01/Microsoft.Logic.json",
+  "contentVersion": "1.0.0.0",
+  "definition": {
+    "metadata": {
+      "name": "Send Teams Notification",
+      "description": "Sends Teams notification to requester about approval status"
+    },
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "PowerApp",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "recipientId": {
+                "type": "string"
+              },
+              "messageType": {
+                "type": "string",
+                "enum": ["approval", "rejection", "information_request"]
+              },
+              "quotationId": {
+                "type": "string"
+              },
+              "approvedBy": {
+                "type": "string"
+              },
+              "rejectedBy": {
+                "type": "string"
+              },
+              "requestedBy": {
+                "type": "string"
+              },
+              "customerName": {
+                "type": "string"
+              },
+              "rejectionReason": {
+                "type": "string"
+              },
+              "infoType": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "string"
+              },
+              "expectedResponse": {
+                "type": "string"
+              }
+            },
+            "required": ["recipientId", "messageType", "quotationId"]
+          }
+        }
+      }
+    },
+    "actions": {
+      "Get_Recipient_Details": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_teams",
+            "operationId": "GetUser",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+          },
+          "parameters": {
+            "UserPrincipalName": "@{triggerBody()['recipientId']}"
+          }
+        }
+      },
+      "Switch_Message_Type": {
+        "type": "Switch",
+        "expression": "@triggerBody()['messageType']",
+        "cases": {
+          "approval": {
+            "case": "approval",
+            "actions": {
+              "Create_Approval_Card": {
+                "type": "Compose",
+                "inputs": {
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "Container",
+                      "style": "good",
+                      "items": [
+                        {
+                          "type": "TextBlock",
+                          "text": "✅ Quotation Approved",
+                          "weight": "Bolder",
+                          "size": "Large",
+                          "color": "Good"
+                        },
+                        {
+                          "type": "TextBlock",
+                          "text": "Your hardware quotation has been approved!",
+                          "wrap": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "Quotation ID:",
+                          "value": "@{triggerBody()['quotationId']}"
+                        },
+                        {
+                          "title": "Customer:",
+                          "value": "@{triggerBody()['customerName']}"
+                        },
+                        {
+                          "title": "Approved by:",
+                          "value": "@{triggerBody()['approvedBy']}"
+                        },
+                        {
+                          "title": "Time:",
+                          "value": "@{utcNow()}"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "Send_Approval_Message": {
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_teams",
+                    "operationId": "PostMessageToConversation",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                  },
+                  "parameters": {
+                    "poster": "Flow bot",
+                    "location": "Chat with Flow bot",
+                    "body/recipient": "@{body('Get_Recipient_Details')?['id']}",
+                    "body/messageBody": "<attachment id=\"0\"></attachment>",
+                    "body/messageBodyType": "html",
+                    "body/attachments": [
+                      {
+                        "id": "0",
+                        "contentType": "application/vnd.microsoft.card.adaptive",
+                        "content": "@{outputs('Create_Approval_Card')}"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "rejection": {
+            "case": "rejection",
+            "actions": {
+              "Create_Rejection_Card": {
+                "type": "Compose",
+                "inputs": {
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "Container",
+                      "style": "attention",
+                      "items": [
+                        {
+                          "type": "TextBlock",
+                          "text": "❌ Quotation Rejected",
+                          "weight": "Bolder",
+                          "size": "Large",
+                          "color": "Attention"
+                        },
+                        {
+                          "type": "TextBlock",
+                          "text": "Your hardware quotation has been rejected.",
+                          "wrap": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "Quotation ID:",
+                          "value": "@{triggerBody()['quotationId']}"
+                        },
+                        {
+                          "title": "Customer:",
+                          "value": "@{triggerBody()['customerName']}"
+                        },
+                        {
+                          "title": "Rejected by:",
+                          "value": "@{triggerBody()['rejectedBy']}"
+                        },
+                        {
+                          "title": "Reason:",
+                          "value": "@{triggerBody()['rejectionReason']}"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Container",
+                      "items": [
+                        {
+                          "type": "TextBlock",
+                          "text": "Please address the concerns and resubmit if needed.",
+                          "wrap": true,
+                          "weight": "Lighter"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "Send_Rejection_Message": {
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_teams",
+                    "operationId": "PostMessageToConversation",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                  },
+                  "parameters": {
+                    "poster": "Flow bot",
+                    "location": "Chat with Flow bot",
+                    "body/recipient": "@{body('Get_Recipient_Details')?['id']}",
+                    "body/messageBody": "<attachment id=\"0\"></attachment>",
+                    "body/messageBodyType": "html",
+                    "body/attachments": [
+                      {
+                        "id": "0",
+                        "contentType": "application/vnd.microsoft.card.adaptive",
+                        "content": "@{outputs('Create_Rejection_Card')}"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "information_request": {
+            "case": "information_request",
+            "actions": {
+              "Create_InfoRequest_Card": {
+                "type": "Compose",
+                "inputs": {
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "Container",
+                      "style": "warning",
+                      "items": [
+                        {
+                          "type": "TextBlock",
+                          "text": "💬 Additional Information Requested",
+                          "weight": "Bolder",
+                          "size": "Large",
+                          "color": "Warning"
+                        },
+                        {
+                          "type": "TextBlock",
+                          "text": "More information is needed for your quotation.",
+                          "wrap": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "Quotation ID:",
+                          "value": "@{triggerBody()['quotationId']}"
+                        },
+                        {
+                          "title": "Requested by:",
+                          "value": "@{triggerBody()['requestedBy']}"
+                        },
+                        {
+                          "title": "Information Type:",
+                          "value": "@{triggerBody()['infoType']}"
+                        },
+                        {
+                          "title": "Priority:",
+                          "value": "@{triggerBody()['priority']}"
+                        },
+                        {
+                          "title": "Response Expected:",
+                          "value": "@{triggerBody()['expectedResponse']}"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "Send_InfoRequest_Message": {
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_teams",
+                    "operationId": "PostMessageToConversation",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                  },
+                  "parameters": {
+                    "poster": "Flow bot",
+                    "location": "Chat with Flow bot",
+                    "body/recipient": "@{body('Get_Recipient_Details')?['id']}",
+                    "body/messageBody": "<attachment id=\"0\"></attachment>",
+                    "body/messageBodyType": "html",
+                    "body/attachments": [
+                      {
+                        "id": "0",
+                        "contentType": "application/vnd.microsoft.card.adaptive",
+                        "content": "@{outputs('Create_InfoRequest_Card')}"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "success": true,
+            "message": "Notification sent successfully"
+          }
+        }
+      }
+    }
+  }
+}

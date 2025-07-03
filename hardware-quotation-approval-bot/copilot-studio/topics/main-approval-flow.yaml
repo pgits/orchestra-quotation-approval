@@ -1,0 +1,97 @@
+# Main Hardware Quotation Approval Topic
+# This is the primary topic triggered by external agent calls
+
+kind: Topic
+name: Hardware Quotation Approval Request
+trigger:
+  type: EventTrigger
+  event: ExternalCall
+  parameters:
+    - name: quotationId
+      type: String
+      required: true
+    - name: customerName
+      type: String
+      required: true
+    - name: hardwareDetails
+      type: Object
+      required: true
+    - name: totalAmount
+      type: Number
+      required: true
+    - name: requesterId
+      type: String
+      required: true
+    - name: urgencyLevel
+      type: String
+      required: false
+      default: "Normal"
+    - name: callbackUrl
+      type: String
+      required: true
+
+conversation:
+  - id: greeting
+    type: Message
+    content: |
+      📋 **New Hardware Quotation Approval Request**
+      
+      A new hardware quotation requires your approval.
+    
+  - id: showQuotationCard
+    type: AdaptiveCard
+    card: quotation-summary-card.json
+    inputs:
+      quotationId: ${Topic.quotationId}
+      customerName: ${Topic.customerName}
+      hardwareDetails: ${Topic.hardwareDetails}
+      totalAmount: ${Topic.totalAmount}
+      requesterId: ${Topic.requesterId}
+      urgencyLevel: ${Topic.urgencyLevel}
+    
+  - id: captureDecision
+    type: Question
+    question: Please review the quotation details above and select an action:
+    answerType: Choice
+    choices:
+      - value: approve
+        display: ✅ Approve Quotation
+      - value: reject
+        display: ❌ Reject Quotation
+      - value: moreInfo
+        display: 💬 Request More Information
+    variable: approvalDecision
+    
+  - id: routeDecision
+    type: Condition
+    condition: Topic.approvalDecision
+    branches:
+      - value: approve
+        actions:
+          - type: RedirectToTopic
+            topic: approval-process
+      - value: reject
+        actions:
+          - type: RedirectToTopic
+            topic: rejection-process
+      - value: moreInfo
+        actions:
+          - type: RedirectToTopic
+            topic: information-request-process
+            
+  - id: finalMessage
+    type: Message
+    content: Thank you for reviewing this quotation request.
+
+variables:
+  - name: approvalDecision
+    type: String
+    scope: Topic
+  - name: approverEmail
+    type: String
+    scope: Global
+    value: ${User.Email}
+  - name: approvalTimestamp
+    type: DateTime
+    scope: Global
+    value: ${System.UtcNow}

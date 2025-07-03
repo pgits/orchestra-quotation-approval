@@ -1,0 +1,123 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2016-06-01/Microsoft.Logic.json",
+  "contentVersion": "1.0.0.0",
+  "definition": {
+    "metadata": {
+      "name": "Check Approval Limits",
+      "description": "Checks if approver has authority to approve the quotation amount"
+    },
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "PowerApp",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "approverEmail": {
+                "type": "string"
+              },
+              "quotationAmount": {
+                "type": "number"
+              }
+            },
+            "required": ["approverEmail", "quotationAmount"]
+          }
+        }
+      }
+    },
+    "actions": {
+      "Get_User_Profile": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_commondataserviceforapps",
+            "operationId": "GetItem",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+          },
+          "parameters": {
+            "entityName": "systemusers",
+            "$filter": "internalemailaddress eq '@{triggerBody()['approverEmail']}'",
+            "$expand": "businessunitid,title"
+          }
+        }
+      },
+      "Get_Approval_Limits": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_commondataserviceforapps",
+            "operationId": "ListRecords",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+          },
+          "parameters": {
+            "entityName": "cr_approvallimits",
+            "$filter": "cr_role eq '@{body('Get_User_Profile')?['title']}' and statecode eq 0",
+            "$orderby": "cr_maxamount desc",
+            "$top": 1
+          }
+        }
+      },
+      "Check_Default_Limit": {
+        "type": "Condition",
+        "expression": {
+          "and": [
+            {
+              "equals": [
+                "@length(body('Get_Approval_Limits')?['value'])",
+                0
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "Use_Default_Limit": {
+            "type": "Compose",
+            "inputs": {
+              "approvalLimit": 5000,
+              "isDefault": true
+            }
+          }
+        },
+        "else": {
+          "actions": {
+            "Use_Role_Limit": {
+              "type": "Compose",
+              "inputs": {
+                "approvalLimit": "@first(body('Get_Approval_Limits')?['value'])?['cr_maxamount']",
+                "isDefault": false
+              }
+            }
+          }
+        }
+      },
+      "Determine_Approval_Authority": {
+        "type": "Compose",
+        "inputs": {
+          "isWithinLimit": "@lessOrEquals(triggerBody()['quotationAmount'], coalesce(outputs('Use_Role_Limit')?['approvalLimit'], outputs('Use_Default_Limit')?['approvalLimit']))",
+          "approverLimit": "@coalesce(outputs('Use_Role_Limit')?['approvalLimit'], outputs('Use_Default_Limit')?['approvalLimit'])"
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "isWithinLimit": "@outputs('Determine_Approval_Authority')?['isWithinLimit']",
+            "approverLimit": "@outputs('Determine_Approval_Authority')?['approverLimit']"
+          }
+        }
+      }
+    },
+    "outputs": {
+      "isWithinLimit": {
+        "type": "boolean",
+        "value": "@outputs('Determine_Approval_Authority')?['isWithinLimit']"
+      },
+      "approverLimit": {
+        "type": "number",
+        "value": "@outputs('Determine_Approval_Authority')?['approverLimit']"
+      }
+    }
+  }
+}

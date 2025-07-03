@@ -1,0 +1,117 @@
+# Approval Process Topic
+# Handles the approval workflow when user approves a quotation
+
+kind: Topic
+name: Approval Process
+trigger:
+  type: None
+
+conversation:
+  - id: confirmApproval
+    type: Question
+    question: |
+      ✅ **Approving Quotation #${Global.quotationId}**
+      
+      Would you like to add any approval notes or comments?
+    answerType: Text
+    variable: approvalNotes
+    validation:
+      required: false
+      maxLength: 500
+    
+  - id: checkApprovalLimit
+    type: PowerAutomate
+    flow: check-approval-limits
+    inputs:
+      approverEmail: ${Global.approverEmail}
+      quotationAmount: ${Topic.totalAmount}
+    outputs:
+      - name: isWithinLimit
+        type: Boolean
+      - name: approverLimit
+        type: Number
+    
+  - id: routeApprovalLimit
+    type: Condition
+    condition: Topic.isWithinLimit
+    branches:
+      - value: true
+        actions:
+          - type: Continue
+      - value: false
+        actions:
+          - type: Message
+            content: |
+              ⚠️ This quotation exceeds your approval limit of $${Topic.approverLimit}.
+              The request will be escalated to your manager.
+          - type: PowerAutomate
+            flow: escalate-approval
+            inputs:
+              quotationId: ${Global.quotationId}
+              currentApprover: ${Global.approverEmail}
+              amount: ${Topic.totalAmount}
+          - type: EndTopic
+    
+  - id: logApproval
+    type: PowerAutomate
+    flow: log-approval-decision
+    inputs:
+      quotationId: ${Global.quotationId}
+      decision: "Approved"
+      approverEmail: ${Global.approverEmail}
+      approvalNotes: ${Topic.approvalNotes}
+      timestamp: ${Global.approvalTimestamp}
+      customerName: ${Topic.customerName}
+      totalAmount: ${Topic.totalAmount}
+    outputs:
+      - name: approvalRecordId
+        type: String
+    
+  - id: sendCallback
+    type: PowerAutomate
+    flow: send-callback-notification
+    inputs:
+      callbackUrl: ${Topic.callbackUrl}
+      payload:
+        quotationId: ${Global.quotationId}
+        status: "approved"
+        approvedBy: ${Global.approverEmail}
+        approvalRecordId: ${Topic.approvalRecordId}
+        approvalNotes: ${Topic.approvalNotes}
+        timestamp: ${Global.approvalTimestamp}
+    
+  - id: notifyRequester
+    type: PowerAutomate
+    flow: send-teams-notification
+    inputs:
+      recipientId: ${Topic.requesterId}
+      messageType: "approval"
+      quotationId: ${Global.quotationId}
+      approvedBy: ${Global.approverEmail}
+      customerName: ${Topic.customerName}
+    
+  - id: successMessage
+    type: Message
+    content: |
+      ✅ **Quotation Approved Successfully**
+      
+      - Quotation ID: ${Global.quotationId}
+      - Customer: ${Topic.customerName}
+      - Amount: $${Topic.totalAmount}
+      - Approval Record: ${Topic.approvalRecordId}
+      
+      The requester has been notified, and the parent system has been updated.
+
+variables:
+  - name: approvalNotes
+    type: String
+    scope: Topic
+  - name: isWithinLimit
+    type: Boolean
+    scope: Topic
+  - name: approverLimit
+    type: Number
+    scope: Topic
+  - name: approvalRecordId
+    type: String
+    scope: Topic

@@ -1,0 +1,143 @@
+# Information Request Process Topic
+# Handles requests for additional information about the quotation
+
+kind: Topic
+name: Information Request Process
+trigger:
+  type: None
+
+conversation:
+  - id: selectInfoType
+    type: Question
+    question: |
+      💬 **Request More Information**
+      
+      What additional information do you need about this quotation?
+    answerType: Choice
+    choices:
+      - value: technical_specs
+        display: Detailed technical specifications
+      - value: warranty_info
+        display: Warranty and support details
+      - value: delivery_timeline
+        display: Detailed delivery timeline
+      - value: volume_discount
+        display: Volume discount options
+      - value: alternative_products
+        display: Alternative product suggestions
+      - value: vendor_credentials
+        display: Vendor credentials and references
+      - value: custom_question
+        display: Ask a specific question
+    variable: infoRequestType
+    
+  - id: captureCustomQuestion
+    type: Condition
+    condition: Topic.infoRequestType
+    branches:
+      - value: custom_question
+        actions:
+          - type: Question
+            question: Please enter your specific question:
+            answerType: Text
+            variable: customQuestion
+            validation:
+              required: true
+              minLength: 10
+              maxLength: 1000
+    
+  - id: setPriority
+    type: Question
+    question: How urgent is this information request?
+    answerType: Choice
+    choices:
+      - value: high
+        display: 🔴 High - Need response within 2 hours
+      - value: medium
+        display: 🟡 Medium - Need response within 24 hours
+      - value: low
+        display: 🟢 Low - Response within 48 hours is fine
+    variable: requestPriority
+    
+  - id: createInfoRequest
+    type: PowerAutomate
+    flow: create-information-request
+    inputs:
+      quotationId: ${Global.quotationId}
+      requestType: ${Topic.infoRequestType}
+      customQuestion: ${Topic.customQuestion}
+      priority: ${Topic.requestPriority}
+      requestedBy: ${Global.approverEmail}
+      timestamp: ${Global.approvalTimestamp}
+    outputs:
+      - name: requestId
+        type: String
+      - name: expectedResponseTime
+        type: String
+    
+  - id: sendCallback
+    type: PowerAutomate
+    flow: send-callback-notification
+    inputs:
+      callbackUrl: ${Topic.callbackUrl}
+      payload:
+        quotationId: ${Global.quotationId}
+        status: "pending_information"
+        requestId: ${Topic.requestId}
+        informationType: ${Topic.infoRequestType}
+        customQuestion: ${Topic.customQuestion}
+        priority: ${Topic.requestPriority}
+        requestedBy: ${Global.approverEmail}
+        timestamp: ${Global.approvalTimestamp}
+    
+  - id: notifyRequester
+    type: PowerAutomate
+    flow: send-teams-notification
+    inputs:
+      recipientId: ${Topic.requesterId}
+      messageType: "information_request"
+      quotationId: ${Global.quotationId}
+      requestedBy: ${Global.approverEmail}
+      infoType: ${Topic.infoRequestType}
+      priority: ${Topic.requestPriority}
+      expectedResponse: ${Topic.expectedResponseTime}
+    
+  - id: setReminder
+    type: PowerAutomate
+    flow: set-followup-reminder
+    inputs:
+      requestId: ${Topic.requestId}
+      reminderTime: ${Topic.expectedResponseTime}
+      approverEmail: ${Global.approverEmail}
+      quotationId: ${Global.quotationId}
+    
+  - id: confirmationMessage
+    type: Message
+    content: |
+      💬 **Information Request Submitted**
+      
+      - Request ID: ${Topic.requestId}
+      - Type: ${Topic.infoRequestType}
+      - Priority: ${Topic.requestPriority}
+      - Expected Response: ${Topic.expectedResponseTime}
+      
+      You will receive a notification when the requested information is available.
+      
+      The approval decision for this quotation is now pending until the information is received.
+
+variables:
+  - name: infoRequestType
+    type: String
+    scope: Topic
+  - name: customQuestion
+    type: String
+    scope: Topic
+  - name: requestPriority
+    type: String
+    scope: Topic
+  - name: requestId
+    type: String
+    scope: Topic
+  - name: expectedResponseTime
+    type: String
+    scope: Topic

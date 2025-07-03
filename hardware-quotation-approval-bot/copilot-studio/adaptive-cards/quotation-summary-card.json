@@ -1,0 +1,286 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "Container",
+      "style": "emphasis",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "Image",
+                  "url": "https://img.icons8.com/color/48/000000/purchase-order.png",
+                  "size": "Medium"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "Hardware Quotation Request",
+                  "weight": "Bolder",
+                  "size": "Large",
+                  "wrap": true
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "ID: ${quotationId}",
+                  "isSubtle": true,
+                  "wrap": true
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "${urgencyLevel}",
+                  "weight": "Bolder",
+                  "color": "${if(urgencyLevel == 'High', 'Attention', if(urgencyLevel == 'Medium', 'Warning', 'Good'))}",
+                  "horizontalAlignment": "Right"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "separator": true,
+      "items": [
+        {
+          "type": "FactSet",
+          "facts": [
+            {
+              "title": "Customer:",
+              "value": "${customerName}"
+            },
+            {
+              "title": "Requested by:",
+              "value": "${requesterId}"
+            },
+            {
+              "title": "Date:",
+              "value": "{{DATE(${timestamp}, SHORT)}}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "separator": true,
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "Hardware Items",
+          "weight": "Bolder",
+          "size": "Medium"
+        },
+        {
+          "type": "Container",
+          "items": [
+            {
+              "type": "ColumnSet",
+              "columns": [
+                {
+                  "type": "Column",
+                  "width": "stretch",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "**Item**",
+                      "weight": "Bolder"
+                    }
+                  ]
+                },
+                {
+                  "type": "Column",
+                  "width": "auto",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "**Qty**",
+                      "weight": "Bolder",
+                      "horizontalAlignment": "Center"
+                    }
+                  ]
+                },
+                {
+                  "type": "Column",
+                  "width": "auto",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "**Unit Price**",
+                      "weight": "Bolder",
+                      "horizontalAlignment": "Right"
+                    }
+                  ]
+                },
+                {
+                  "type": "Column",
+                  "width": "auto",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "**Total**",
+                      "weight": "Bolder",
+                      "horizontalAlignment": "Right"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Container",
+          "$data": "${hardwareDetails.items}",
+          "items": [
+            {
+              "type": "ColumnSet",
+              "separator": true,
+              "columns": [
+                {
+                  "type": "Column",
+                  "width": "stretch",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "${name}",
+                      "wrap": true
+                    }
+                  ]
+                },
+                {
+                  "type": "Column",
+                  "width": "auto",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "${quantity}",
+                      "horizontalAlignment": "Center"
+                    }
+                  ]
+                },
+                {
+                  "type": "Column",
+                  "width": "auto",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "$${formatNumber(unitPrice, 2)}",
+                      "horizontalAlignment": "Right"
+                    }
+                  ]
+                },
+                {
+                  "type": "Column",
+                  "width": "auto",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "$${formatNumber(quantity * unitPrice, 2)}",
+                      "horizontalAlignment": "Right",
+                      "weight": "Bolder"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "separator": true,
+      "style": "accent",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "Total Amount:",
+                  "weight": "Bolder",
+                  "size": "Large"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "$${formatNumber(totalAmount, 2)}",
+                  "weight": "Bolder",
+                  "size": "Large",
+                  "color": "Accent",
+                  "horizontalAlignment": "Right"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "separator": true,
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "Business Justification",
+          "weight": "Bolder"
+        },
+        {
+          "type": "TextBlock",
+          "text": "${hardwareDetails.justification}",
+          "wrap": true,
+          "spacing": "Small"
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "separator": true,
+      "spacing": "Medium",
+      "items": [
+        {
+          "type": "ActionSet",
+          "actions": [
+            {
+              "type": "Action.Submit",
+              "title": "View Full Details",
+              "style": "positive",
+              "data": {
+                "action": "viewDetails",
+                "quotationId": "${quotationId}"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "name": "hardware-quotation-approval-bot",
+  "version": "1.0.0",
+  "description": "Microsoft Teams Copilot Studio agent for hardware quotation approvals",
+  "main": "integration/callback-handler.js",
+  "scripts": {
+    "deploy": "powershell -ExecutionPolicy Bypass -File ./deployment/deploy-to-copilot-studio.ps1",
+    "test": "jest",
+    "lint": "eslint integration/**/*.js",
+    "validate": "node scripts/validate-configs.js"
+  },
+  "keywords": [
+    "copilot-studio",
+    "microsoft-teams",
+    "power-platform",
+    "approval-workflow",
+    "dataverse"
+  ],
+  "author": "Your Company",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "jest": "^29.7.0",
+    "@types/node": "^20.8.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourcompany/hardware-quotation-approval-bot"
+  }
+}

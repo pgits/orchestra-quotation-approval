@@ -1,0 +1,116 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "Container",
+      "style": "good",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "Image",
+                  "url": "https://img.icons8.com/color/48/000000/approval.png",
+                  "size": "Medium"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "Quotation Approved",
+                  "weight": "Bolder",
+                  "size": "Large",
+                  "color": "Good"
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "The hardware quotation has been successfully approved",
+                  "wrap": true,
+                  "isSubtle": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "separator": true,
+      "items": [
+        {
+          "type": "FactSet",
+          "facts": [
+            {
+              "title": "Quotation ID:",
+              "value": "${quotationId}"
+            },
+            {
+              "title": "Customer:",
+              "value": "${customerName}"
+            },
+            {
+              "title": "Total Amount:",
+              "value": "$${formatNumber(totalAmount, 2)}"
+            },
+            {
+              "title": "Approved By:",
+              "value": "${approvedBy}"
+            },
+            {
+              "title": "Approval Time:",
+              "value": "{{DATE(${timestamp}, SHORT)}} {{TIME(${timestamp})}}"
+            },
+            {
+              "title": "Record ID:",
+              "value": "${approvalRecordId}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "separator": true,
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "Approval Notes",
+          "weight": "Bolder"
+        },
+        {
+          "type": "TextBlock",
+          "text": "${if(approvalNotes, approvalNotes, 'No additional notes provided')}",
+          "wrap": true,
+          "isSubtle": true
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "separator": true,
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "Next Steps",
+          "weight": "Bolder"
+        },
+        {
+          "type": "TextBlock",
+          "text": "• Purchase order will be generated\n• Vendor will be notified\n• Expected delivery timeline will be confirmed\n• You will receive updates on order progress",
+          "wrap": true
+        }
+      ]
+    }
+  ]
+}

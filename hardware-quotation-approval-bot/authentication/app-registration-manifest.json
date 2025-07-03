@@ -1,0 +1,121 @@
+{
+  "id": 33a7afba-68df-4fb5-84ba-abd928569b69"
+  "appId": "{{CLIENT_ID}}",
+  "name": "Hardware Quotation Approval Bot",
+  "description": "Copilot Studio bot for hardware quotation approvals in Microsoft Teams",
+  "identifierUris": [
+    "api://copilot-studio-quotation-approval"
+  ],
+  "signInAudience": "AzureADMyOrg",
+  "requiredResourceAccess": [
+    {
+      "resourceAppId": "00000003-0000-0000-c000-000000000000",
+      "resourceAccess": [
+        {
+          "id": "e1fe6dd8-ba31-4d61-89e7-88639da4683d",
+          "type": "Scope",
+          "comment": "User.Read - Sign in and read user profile"
+        },
+        {
+          "id": "64a6cdd6-aab1-4aaf-94b8-3cc8405e90d0",
+          "type": "Scope",
+          "comment": "email - View users' email address"
+        },
+        {
+          "id": "14dad69e-099b-42c9-810b-d002981feec1",
+          "type": "Scope",
+          "comment": "profile - View users' basic profile"
+        }
+      ]
+    },
+    {
+      "resourceAppId": "00000007-0000-0000-c000-000000000000",
+      "resourceAccess": [
+        {
+          "id": "78ce3f0f-a1ce-49c2-8cde-64b5c0896db4",
+          "type": "Scope",
+          "comment": "user_impersonation - Access Dataverse as organization users"
+        }
+      ]
+    },
+    {
+      "resourceAppId": "00000002-0000-0ff1-ce00-000000000000",
+      "resourceAccess": [
+        {
+          "id": "5eb43c10-865a-4259-960a-83946678f8dd",
+          "type": "Scope",
+          "comment": "ChannelMessage.Send - Send channel messages in Teams"
+        },
+        {
+          "id": "7825d5d6-6049-4ce7-bdf6-3b8d53f4bcd0",
+          "type": "Scope",
+          "comment": "Chat.ReadWrite - Read and write user chat messages"
+        }
+      ]
+    }
+  ],
+  "oauth2Permissions": [
+    {
+      "adminConsentDescription": "Allow the app to access the Hardware Quotation Approval Bot on behalf of the signed-in user.",
+      "adminConsentDisplayName": "Access Hardware Quotation Approval Bot",
+      "id": "{{SCOPE_ID}}",
+      "isEnabled": true,
+      "type": "User",
+      "userConsentDescription": "Allow the app to access the Hardware Quotation Approval Bot on your behalf.",
+      "userConsentDisplayName": "Access Hardware Quotation Approval Bot",
+      "value": "access_as_user"
+    }
+  ],
+  "appRoles": [
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Basic approvers can approve quotations up to their limit",
+      "displayName": "Quotation Approver",
+      "id": "{{APPROVER_ROLE_ID}}",
+      "isEnabled": true,
+      "value": "QuotationApprover"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Senior approvers have higher approval limits",
+      "displayName": "Senior Quotation Approver",
+      "id": "{{SENIOR_APPROVER_ROLE_ID}}",
+      "isEnabled": true,
+      "value": "SeniorQuotationApprover"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Administrators can manage approval limits and settings",
+      "displayName": "Approval Administrator",
+      "id": "{{ADMIN_ROLE_ID}}",
+      "isEnabled": true,
+      "value": "ApprovalAdministrator"
+    },
+    {
+      "allowedMemberTypes": ["Application"],
+      "description": "Applications that can trigger approval workflows",
+      "displayName": "Workflow Trigger",
+      "id": "{{WORKFLOW_TRIGGER_ROLE_ID}}",
+      "isEnabled": true,
+      "value": "WorkflowTrigger"
+    }
+  ],
+  "passwordCredentials": [],
+  "keyCredentials": [],
+  "web": {
+    "redirectUris": [
+      "https://token.botframework.com/.auth/web/redirect",
+      "https://{{TENANT_NAME}}.crm.dynamics.com/main.aspx"
+    ],
+    "implicitGrantSettings": {
+      "enableIdTokenIssuance": true,
+      "enableAccessTokenIssuance": false
+    }
+  },
+  "spa": {
+    "redirectUris": []
+  },
+  "publicClient": {
+    "redirectUris": []
+  }
+}

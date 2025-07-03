@@ -1,0 +1,193 @@
+{
+  "name": "Hardware Quotation Approval Webhook",
+  "description": "Webhook endpoint configuration for receiving approval requests from parent Copilot Studio agent",
+  "endpoint": {
+    "type": "HTTP",
+    "method": "POST",
+    "path": "/api/quotation-approval/trigger",
+    "authentication": {
+      "type": "OAuth2",
+      "tokenEndpoint": "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token",
+      "scope": "api://copilot-studio-quotation-approval/.default"
+    },
+    "headers": {
+      "Content-Type": "application/json",
+      "X-API-Version": "1.0",
+      "X-Source-Agent": "required"
+    },
+    "requestSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "required": [
+        "quotationId",
+        "customerName",
+        "hardwareDetails",
+        "totalAmount",
+        "requesterId",
+        "callbackUrl"
+      ],
+      "properties": {
+        "quotationId": {
+          "type": "string",
+          "pattern": "^QT-[0-9]{6,}$"
+        },
+        "customerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "hardwareDetails": {
+          "type": "object",
+          "required": ["items", "justification"],
+          "properties": {
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["name", "quantity", "unitPrice"],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "unitPrice": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "vendor": {
+                    "type": "string"
+                  },
+                  "partNumber": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "justification": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 2000
+            }
+          }
+        },
+        "totalAmount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "requesterId": {
+          "type": "string",
+          "format": "email"
+        },
+        "urgencyLevel": {
+          "type": "string",
+          "enum": ["Low", "Normal", "Medium", "High", "Critical"],
+          "default": "Normal"
+        },
+        "callbackUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "projectCode": {
+              "type": "string"
+            },
+            "costCenter": {
+              "type": "string"
+            },
+            "department": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "conversationId": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "errorResponses": {
+      "400": {
+        "description": "Bad Request - Invalid input data",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string"
+            },
+            "details": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized - Invalid or missing authentication"
+      },
+      "429": {
+        "description": "Too Many Requests - Rate limit exceeded",
+        "headers": {
+          "Retry-After": {
+            "type": "integer"
+          }
+        }
+      },
+      "500": {
+        "description": "Internal Server Error"
+      }
+    }
+  },
+  "rateLimiting": {
+    "enabled": true,
+    "requests": 100,
+    "window": "1h",
+    "keyBy": "sourceAgent"
+  },
+  "monitoring": {
+    "logLevel": "INFO",
+    "metrics": [
+      "request_count",
+      "response_time",
+      "error_rate",
+      "approval_decision_distribution"
+    ],
+    "alerts": [
+      {
+        "name": "HighErrorRate",
+        "condition": "error_rate > 0.05",
+        "action": "email"
+      },
+      {
+        "name": "SlowResponse",
+        "condition": "p95_response_time > 5000",
+        "action": "teams_notification"
+      }
+    ]
+  }
+}

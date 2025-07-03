@@ -1,0 +1,180 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2016-06-01/Microsoft.Logic.json",
+  "contentVersion": "1.0.0.0",
+  "definition": {
+    "metadata": {
+      "name": "Send Callback Notification",
+      "description": "Sends callback notification to parent Copilot Studio agent"
+    },
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "PowerApp",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "callbackUrl": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": ["callbackUrl", "payload"]
+          }
+        }
+      }
+    },
+    "actions": {
+      "Initialize_RetryCount": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "retryCount",
+              "type": "integer",
+              "value": 0
+            }
+          ]
+        }
+      },
+      "Initialize_Success": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "callbackSuccess",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        }
+      },
+      "Until_Success_Or_Max_Retries": {
+        "type": "Until",
+        "expression": "@or(equals(variables('callbackSuccess'), true), greater(variables('retryCount'), 3))",
+        "limit": {
+          "count": 4,
+          "timeout": "PT10M"
+        },
+        "actions": {
+          "Try_Callback": {
+            "type": "Scope",
+            "actions": {
+              "HTTP_Callback": {
+                "type": "Http",
+                "inputs": {
+                  "method": "POST",
+                  "uri": "@{triggerBody()['callbackUrl']}",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "X-Copilot-Callback": "true",
+                    "X-Request-ID": "@{guid()}"
+                  },
+                  "body": "@triggerBody()['payload']",
+                  "retryPolicy": {
+                    "type": "none"
+                  }
+                }
+              },
+              "Set_Success_True": {
+                "type": "SetVariable",
+                "inputs": {
+                  "name": "callbackSuccess",
+                  "value": true
+                }
+              }
+            },
+            "runAfter": {}
+          },
+          "Catch_Errors": {
+            "type": "Scope",
+            "actions": {
+              "Increment_Retry": {
+                "type": "IncrementVariable",
+                "inputs": {
+                  "name": "retryCount",
+                  "value": 1
+                }
+              },
+              "Log_Error": {
+                "type": "Compose",
+                "inputs": {
+                  "error": "Callback failed",
+                  "attempt": "@{variables('retryCount')}",
+                  "url": "@{triggerBody()['callbackUrl']}",
+                  "timestamp": "@{utcNow()}"
+                }
+              },
+              "Delay_Before_Retry": {
+                "type": "Wait",
+                "inputs": {
+                  "interval": {
+                    "count": "@{mul(variables('retryCount'), 5)}",
+                    "unit": "Second"
+                  }
+                }
+              }
+            },
+            "runAfter": {
+              "Try_Callback": ["Failed", "TimedOut"]
+            }
+          }
+        }
+      },
+      "Check_Final_Status": {
+        "type": "Condition",
+        "expression": {
+          "equals": ["@variables('callbackSuccess')", true]
+        },
+        "actions": {
+          "Success_Response": {
+            "type": "Response",
+            "inputs": {
+              "statusCode": 200,
+              "body": {
+                "success": true,
+                "message": "Callback sent successfully"
+              }
+            }
+          }
+        },
+        "else": {
+          "actions": {
+            "Log_To_DeadLetter": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "cr_failedcallbacks",
+                  "item": {
+                    "cr_callbackurl": "@{triggerBody()['callbackUrl']}",
+                    "cr_payload": "@{json(triggerBody()['payload'])}",
+                    "cr_failuretime": "@{utcNow()}",
+                    "cr_retrycount": "@{variables('retryCount')}",
+                    "cr_quotationid": "@{triggerBody()['payload']['quotationId']}"
+                  }
+                }
+              }
+            },
+            "Failure_Response": {
+              "type": "Response",
+              "inputs": {
+                "statusCode": 500,
+                "body": {
+                  "success": false,
+                  "message": "Callback failed after retries, logged to dead letter queue"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

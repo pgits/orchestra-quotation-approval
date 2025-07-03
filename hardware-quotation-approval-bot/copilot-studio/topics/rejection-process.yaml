@@ -1,0 +1,141 @@
+# Rejection Process Topic
+# Handles the rejection workflow when user rejects a quotation
+
+kind: Topic
+name: Rejection Process
+trigger:
+  type: None
+
+conversation:
+  - id: requireRejectionReason
+    type: Question
+    question: |
+      ❌ **Rejecting Quotation #${Global.quotationId}**
+      
+      Please provide a reason for rejection:
+    answerType: Choice
+    choices:
+      - value: budget_exceeded
+        display: Budget constraints exceeded
+      - value: specifications_mismatch
+        display: Hardware specifications don't meet requirements
+      - value: vendor_issues
+        display: Vendor reliability or compliance issues
+      - value: timing_issues
+        display: Delivery timeline doesn't meet needs
+      - value: better_alternative
+        display: Better alternative available
+      - value: other
+        display: Other reason
+    variable: rejectionReason
+    validation:
+      required: true
+    
+  - id: captureDetailedReason
+    type: Condition
+    condition: Topic.rejectionReason
+    branches:
+      - value: other
+        actions:
+          - type: Question
+            question: Please specify the rejection reason:
+            answerType: Text
+            variable: customRejectionReason
+            validation:
+              required: true
+              minLength: 10
+              maxLength: 500
+    
+  - id: confirmRejection
+    type: Question
+    question: |
+      Are you sure you want to reject this quotation?
+      
+      **Customer:** ${Topic.customerName}
+      **Amount:** $${Topic.totalAmount}
+      **Reason:** ${Topic.rejectionReason}
+    answerType: Choice
+    choices:
+      - value: confirm
+        display: Yes, reject quotation
+      - value: cancel
+        display: No, go back
+    variable: rejectionConfirmation
+    
+  - id: checkConfirmation
+    type: Condition
+    condition: Topic.rejectionConfirmation
+    branches:
+      - value: cancel
+        actions:
+          - type: RedirectToTopic
+            topic: main-approval-flow
+      - value: confirm
+        actions:
+          - type: Continue
+    
+  - id: logRejection
+    type: PowerAutomate
+    flow: log-approval-decision
+    inputs:
+      quotationId: ${Global.quotationId}
+      decision: "Rejected"
+      approverEmail: ${Global.approverEmail}
+      rejectionReason: ${Topic.rejectionReason}
+      customReason: ${Topic.customRejectionReason}
+      timestamp: ${Global.approvalTimestamp}
+      customerName: ${Topic.customerName}
+      totalAmount: ${Topic.totalAmount}
+    outputs:
+      - name: rejectionRecordId
+        type: String
+    
+  - id: sendCallback
+    type: PowerAutomate
+    flow: send-callback-notification
+    inputs:
+      callbackUrl: ${Topic.callbackUrl}
+      payload:
+        quotationId: ${Global.quotationId}
+        status: "rejected"
+        rejectedBy: ${Global.approverEmail}
+        rejectionRecordId: ${Topic.rejectionRecordId}
+        rejectionReason: ${Topic.rejectionReason}
+        customReason: ${Topic.customRejectionReason}
+        timestamp: ${Global.approvalTimestamp}
+    
+  - id: notifyRequester
+    type: PowerAutomate
+    flow: send-teams-notification
+    inputs:
+      recipientId: ${Topic.requesterId}
+      messageType: "rejection"
+      quotationId: ${Global.quotationId}
+      rejectedBy: ${Global.approverEmail}
+      rejectionReason: ${Topic.rejectionReason}
+      customerName: ${Topic.customerName}
+    
+  - id: suggestionMessage
+    type: Message
+    content: |
+      ❌ **Quotation Rejected**
+      
+      - Quotation ID: ${Global.quotationId}
+      - Customer: ${Topic.customerName}
+      - Rejection Record: ${Topic.rejectionRecordId}
+      
+      The requester has been notified with the rejection reason and can work on addressing the concerns.
+
+variables:
+  - name: rejectionReason
+    type: String
+    scope: Topic
+  - name: customRejectionReason
+    type: String
+    scope: Topic
+  - name: rejectionConfirmation
+    type: String
+    scope: Topic
+  - name: rejectionRecordId
+    type: String
+    scope: Topic

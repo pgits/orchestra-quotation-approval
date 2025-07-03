@@ -1,0 +1,154 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2016-06-01/Microsoft.Logic.json",
+  "contentVersion": "1.0.0.0",
+  "definition": {
+    "metadata": {
+      "name": "Log Approval Decision",
+      "description": "Logs quotation approval/rejection decisions to Dataverse"
+    },
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "PowerApp",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "quotationId": {
+                "type": "string"
+              },
+              "decision": {
+                "type": "string"
+              },
+              "approverEmail": {
+                "type": "string"
+              },
+              "approvalNotes": {
+                "type": "string"
+              },
+              "rejectionReason": {
+                "type": "string"
+              },
+              "customReason": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string"
+              },
+              "customerName": {
+                "type": "string"
+              },
+              "totalAmount": {
+                "type": "number"
+              }
+            },
+            "required": ["quotationId", "decision", "approverEmail", "timestamp"]
+          }
+        }
+      }
+    },
+    "actions": {
+      "Initialize_RecordId": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "recordId",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "Get_Approver_Details": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_commondataserviceforapps",
+            "operationId": "ListRecords",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+          },
+          "parameters": {
+            "entityName": "systemusers",
+            "$filter": "internalemailaddress eq '@{triggerBody()['approverEmail']}'",
+            "$select": "systemuserid,fullname,title"
+          }
+        }
+      },
+      "Create_Approval_Record": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_commondataserviceforapps",
+            "operationId": "CreateRecord",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+          },
+          "parameters": {
+            "entityName": "cr_hardwarequotationapprovals",
+            "item": {
+              "cr_quotationid": "@{triggerBody()['quotationId']}",
+              "cr_decision": "@{triggerBody()['decision']}",
+              "cr_approverid": "@{first(body('Get_Approver_Details')?['value'])?['systemuserid']}",
+              "cr_approvername": "@{first(body('Get_Approver_Details')?['value'])?['fullname']}",
+              "cr_approveremail": "@{triggerBody()['approverEmail']}",
+              "cr_decisiondate": "@{triggerBody()['timestamp']}",
+              "cr_approvalnotes": "@{triggerBody()['approvalNotes']}",
+              "cr_rejectionreason": "@{triggerBody()['rejectionReason']}",
+              "cr_customrejectionreason": "@{triggerBody()['customReason']}",
+              "cr_customername": "@{triggerBody()['customerName']}",
+              "cr_totalamount": "@{triggerBody()['totalAmount']}",
+              "cr_status": "@{if(equals(triggerBody()['decision'], 'Approved'), 'Completed', 'Rejected')}"
+            }
+          }
+        }
+      },
+      "Set_RecordId": {
+        "type": "SetVariable",
+        "inputs": {
+          "name": "recordId",
+          "value": "@{body('Create_Approval_Record')?['cr_hardwarequotationapprovalid']}"
+        }
+      },
+      "Create_Audit_Entry": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_commondataserviceforapps",
+            "operationId": "CreateRecord",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+          },
+          "parameters": {
+            "entityName": "cr_approvalauditlog",
+            "item": {
+              "cr_recordid": "@{variables('recordId')}",
+              "cr_entityname": "Hardware Quotation Approval",
+              "cr_action": "@{triggerBody()['decision']}",
+              "cr_userid": "@{first(body('Get_Approver_Details')?['value'])?['systemuserid']}",
+              "cr_timestamp": "@{triggerBody()['timestamp']}",
+              "cr_details": {
+                "quotationId": "@{triggerBody()['quotationId']}",
+                "customerName": "@{triggerBody()['customerName']}",
+                "amount": "@{triggerBody()['totalAmount']}"
+              }
+            }
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "approvalRecordId": "@{variables('recordId')}",
+            "success": true
+          }
+        }
+      }
+    },
+    "outputs": {
+      "approvalRecordId": {
+        "type": "string",
+        "value": "@{variables('recordId')}"
+      }
+    }
+  }
+}

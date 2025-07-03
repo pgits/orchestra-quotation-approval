@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Entity xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>cr_approvallimit</Name>
+  <DisplayName>Approval Limit</DisplayName>
+  <PluralName>Approval Limits</PluralName>
+  <Description>Defines approval limits for different roles and levels</Description>
+  <OwnershipType>OrganizationOwned</OwnershipType>
+  <PrimaryAttribute>cr_role</PrimaryAttribute>
+  
+  <Attributes>
+    <!-- Primary Key -->
+    <Attribute>
+      <Name>cr_approvallimitid</Name>
+      <Type>Uniqueidentifier</Type>
+      <DisplayName>Approval Limit ID</DisplayName>
+      <Description>Unique identifier for the approval limit</Description>
+      <IsPrimaryId>true</IsPrimaryId>
+      <RequiredLevel>SystemRequired</RequiredLevel>
+    </Attribute>
+    
+    <!-- Role Information -->
+    <Attribute>
+      <Name>cr_role</Name>
+      <Type>String</Type>
+      <MaxLength>100</MaxLength>
+      <DisplayName>Role</DisplayName>
+      <Description>Job role or title</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <IsPrimaryName>true</IsPrimaryName>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_department</Name>
+      <Type>String</Type>
+      <MaxLength>100</MaxLength>
+      <DisplayName>Department</DisplayName>
+      <Description>Department the role belongs to</Description>
+      <RequiredLevel>None</RequiredLevel>
+    </Attribute>
+    
+    <!-- Approval Limits -->
+    <Attribute>
+      <Name>cr_minamount</Name>
+      <Type>Money</Type>
+      <DisplayName>Minimum Amount</DisplayName>
+      <Description>Minimum approval amount for this role</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <MinValue>0</MinValue>
+      <DefaultValue>0</DefaultValue>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_maxamount</Name>
+      <Type>Money</Type>
+      <DisplayName>Maximum Amount</DisplayName>
+      <Description>Maximum approval amount for this role</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <MinValue>0</MinValue>
+      <MaxValue>1000000000</MaxValue>
+    </Attribute>
+    
+    <!-- Hierarchy Level -->
+    <Attribute>
+      <Name>cr_hierarchylevel</Name>
+      <Type>Integer</Type>
+      <DisplayName>Hierarchy Level</DisplayName>
+      <Description>Level in the approval hierarchy (1 = lowest)</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <MinValue>1</MinValue>
+      <MaxValue>10</MaxValue>
+      <DefaultValue>1</DefaultValue>
+    </Attribute>
+    
+    <!-- Effective Dates -->
+    <Attribute>
+      <Name>cr_effectivefrom</Name>
+      <Type>DateTime</Type>
+      <DisplayName>Effective From</DisplayName>
+      <Description>Date when this limit becomes effective</Description>
+      <RequiredLevel>ApplicationRequired</RequiredLevel>
+      <Format>DateOnly</Format>
+      <DateTimeBehavior>UserLocal</DateTimeBehavior>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_effectiveto</Name>
+      <Type>DateTime</Type>
+      <DisplayName>Effective To</DisplayName>
+      <Description>Date when this limit expires</Description>
+      <RequiredLevel>None</RequiredLevel>
+      <Format>DateOnly</Format>
+      <DateTimeBehavior>UserLocal</DateTimeBehavior>
+    </Attribute>
+    
+    <!-- Additional Settings -->
+    <Attribute>
+      <Name>cr_requiressecondapproval</Name>
+      <Type>Boolean</Type>
+      <DisplayName>Requires Second Approval</DisplayName>
+      <Description>Whether amounts in this range require a second approver</Description>
+      <RequiredLevel>None</RequiredLevel>
+      <DefaultValue>false</DefaultValue>
+    </Attribute>
+    
+    <Attribute>
+      <Name>cr_escalationthreshold</Name>
+      <Type>Money</Type>
+      <DisplayName>Escalation Threshold</DisplayName>
+      <Description>Amount above which escalation is automatic</Description>
+      <RequiredLevel>None</RequiredLevel>
+      <MinValue>0</MinValue>
+    </Attribute>
+    
+    <!-- Category Restrictions -->
+    <Attribute>
+      <Name>cr_allowedcategories</Name>
+      <Type>Memo</Type>
+      <MaxLength>2000</MaxLength>
+      <DisplayName>Allowed Categories</DisplayName>
+      <Description>Comma-separated list of hardware categories this role can approve</Description>
+      <RequiredLevel>None</RequiredLevel>
+    </Attribute>
+    
+    <!-- Notes -->
+    <Attribute>
+      <Name>cr_notes</Name>
+      <Type>Memo</Type>
+      <MaxLength>2000</MaxLength>
+      <DisplayName>Notes</DisplayName>
+      <Description>Additional notes or conditions</Description>
+      <RequiredLevel>None</RequiredLevel>
+    </Attribute>
+  </Attributes>
+  
+  <!-- Business Rules -->
+  <BusinessRules>
+    <BusinessRule>
+      <Name>ValidateAmountRange</Name>
+      <Description>Ensure max amount is greater than min amount</Description>
+      <Condition>cr_maxamount &lt;= cr_minamount</Condition>
+      <ErrorMessage>Maximum amount must be greater than minimum amount</ErrorMessage>
+    </BusinessRule>
+    
+    <BusinessRule>
+      <Name>ValidateEffectiveDates</Name>
+      <Description>Ensure effective to date is after effective from date</Description>
+      <Condition>cr_effectiveto &lt; cr_effectivefrom</Condition>
+      <ErrorMessage>Effective to date must be after effective from date</ErrorMessage>
+    </BusinessRule>
+  </BusinessRules>
+  
+  <!-- Views -->
+  <Views>
+    <View>
+      <Name>Active Approval Limits</Name>
+      <ViewType>Public</ViewType>
+      <FetchXml>
+        <![CDATA[
+        <fetch>
+          <entity name="cr_approvallimit">
+            <attribute name="cr_role" />
+            <attribute name="cr_department" />
+            <attribute name="cr_minamount" />
+            <attribute name="cr_maxamount" />
+            <attribute name="cr_hierarchylevel" />
+            <attribute name="cr_effectivefrom" />
+            <attribute name="cr_effectiveto" />
+            <filter>
+              <condition attribute="statecode" operator="eq" value="0" />
+              <condition attribute="cr_effectivefrom" operator="on-or-before" value="@today" />
+              <filter type="or">
+                <condition attribute="cr_effectiveto" operator="null" />
+                <condition attribute="cr_effectiveto" operator="on-or-after" value="@today" />
+              </filter>
+            </filter>
+            <order attribute="cr_hierarchylevel" />
+            <order attribute="cr_role" />
+          </entity>
+        </fetch>
+        ]]>
+      </FetchXml>
+    </View>
+  </Views>
+</Entity>
