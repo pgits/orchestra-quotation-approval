@@ -20,6 +20,7 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.keys import Keys
 
 # Configure logging
 logging.basicConfig(
@@ -129,6 +130,10 @@ class LocalProductionScraper:
         """Initialize Chrome browser with appropriate options"""
         logger.info("🌐 Initializing Chrome browser...")
         
+        # Create download directory
+        download_dir = os.path.join(os.getcwd(), "production_scraper_data", "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        
         chrome_options = Options()
         # Remove headless for debugging - you can see what's happening
         # chrome_options.add_argument('--headless')
@@ -141,6 +146,15 @@ class LocalProductionScraper:
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         
+        # Configure download settings
+        prefs = {
+            "download.default_directory": download_dir,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": True
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
+        
         try:
             # Use webdriver-manager to automatically download and manage ChromeDriver
             service = Service(ChromeDriverManager().install())
@@ -148,6 +162,7 @@ class LocalProductionScraper:
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             self.wait = WebDriverWait(self.driver, 20)
             logger.info("✅ Browser initialized successfully")
+            logger.info(f"📁 Downloads will be saved to: {download_dir}")
             return True
         except WebDriverException as e:
             logger.error(f"❌ Failed to initialize browser: {str(e)}")
@@ -269,75 +284,367 @@ class LocalProductionScraper:
             return False
     
     def apply_microsoft_filters(self):
-        """Apply filters to get Microsoft products"""
+        """Apply filters to get Microsoft products with comprehensive debugging"""
         logger.info("🔍 Applying Microsoft product filters...")
         
         try:
-            # Look for manufacturer filter
-            logger.info("Looking for manufacturer filter...")
+            # Save page source for debugging
+            page_source = self.driver.page_source
+            with open("debug_manufacturer_page.html", "w", encoding="utf-8") as f:
+                f.write(page_source)
+            logger.info("💾 Saved page source to debug_manufacturer_page.html for analysis")
             
-            # Try different possible selectors for manufacturer filter
-            manufacturer_selectors = [
-                "select[name*='manufacturer']",
-                "select[id*='manufacturer']", 
-                "#manufacturerFilter",
-                ".manufacturer-select",
-                "select[name='mfg']",
-                "select[name='vendor']"
-            ]
+            # First, find and use the manufacturer filter search box
+            logger.info("🔍 Looking for manufacturer filter search box...")
             
-            manufacturer_dropdown = None
-            for selector in manufacturer_selectors:
-                try:
-                    manufacturer_dropdown = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    logger.info(f"✅ Found manufacturer dropdown with selector: {selector}")
-                    break
-                except:
-                    continue
-            
-            if manufacturer_dropdown:
-                # Try to select Microsoft
-                select = Select(manufacturer_dropdown)
-                
-                # Try different variations of Microsoft in the dropdown
-                microsoft_options = [
-                    'Microsoft', 'MICROSOFT', 'Microsoft Corporation', 'MSFT',
-                    'Microsoft Corp', 'Microsoft Retail', 'MICROSOFT CORP', 
-                    'MICROSOFT CORPORATION', 'MICROSOFT RETAIL'
+            try:
+                # Look for the filter icon and input box for manufacturers
+                filter_selectors = [
+                    ("CSS", "input.filter-icon.manufactures-filter.float-right"),
+                    ("CSS", ".filter-icon.manufactures-filter.float-right"),
+                    ("CSS", "input[class*='manufactures-filter']"),
+                    ("CSS", "input[placeholder*='Enter keywords to filter']"),
+                    ("XPATH", "//input[@class='filter-icon manufactures-filter float-right']"),
+                    ("CSS", "input.manufactures-filter"),
+                    ("CSS", ".manufactures-filter input"),
+                    ("XPATH", "//div[contains(@class, 'manufactures-filter')]//input"),
                 ]
                 
-                for option_text in microsoft_options:
+                manufacturer_filter_input = None
+                for selector_type, selector in filter_selectors:
                     try:
-                        select.select_by_visible_text(option_text)
-                        logger.info(f"✅ Selected manufacturer: {option_text}")
-                        time.sleep(2)
-                        return True
+                        if selector_type == "CSS":
+                            manufacturer_filter_input = self.driver.find_element(By.CSS_SELECTOR, selector)
+                        elif selector_type == "XPATH":
+                            manufacturer_filter_input = self.driver.find_element(By.XPATH, selector)
+                        elif selector_type == "ID":
+                            manufacturer_filter_input = self.driver.find_element(By.ID, selector)
+                        
+                        if manufacturer_filter_input and manufacturer_filter_input.is_displayed():
+                            logger.info(f"✅ Found manufacturer filter input using {selector_type}: {selector}")
+                            break
                     except:
                         continue
                 
-                # If exact match fails, try partial match
-                all_options = [option.text for option in select.options]
-                logger.info(f"Available manufacturer options: {all_options[:10]}...")  # Show first 10
-                
-                for option in select.options:
-                    option_text_lower = option.text.lower()
-                    if any(ms_variant in option_text_lower for ms_variant in ['microsoft', 'msft']):
-                        select.select_by_visible_text(option.text)
-                        logger.info(f"✅ Selected manufacturer (partial match): {option.text}")
-                        time.sleep(2)
-                        return True
+                if manufacturer_filter_input:
+                    # Clear and type "Microsoft" in the filter
+                    manufacturer_filter_input.clear()
+                    manufacturer_filter_input.send_keys("Microsoft")
+                    logger.info("✅ Typed 'Microsoft' in manufacturer filter")
+                    
+                    # Wait for the filter to apply
+                    time.sleep(2)
+                    
+                    # Sometimes need to press Enter or trigger the filter
+                    try:
+                        manufacturer_filter_input.send_keys(Keys.RETURN)
+                        logger.info("✅ Pressed Enter to apply filter")
+                    except:
+                        pass
+                    
+                    time.sleep(1)
+                else:
+                    logger.warning("⚠️ Could not find manufacturer filter input box")
             
-            logger.warning("⚠️ Could not find or select Microsoft manufacturer filter")
-            logger.info("Proceeding without manufacturer filter...")
+            except Exception as e:
+                logger.error(f"❌ Error using manufacturer filter: {e}")
+            
+            # Now look for the manufacturer filter section
+            logger.info("🔍 Looking for manufacturer checkboxes after filtering...")
+            
+            # Try multiple approaches to find the manufacturer section
+            manufacturer_sections = [
+                ("ID", "realtimeManufacturer"),
+                ("ID", "manufacturer"),
+                ("CLASS", "manufacturer-filter"),
+                ("CLASS", "mfg-filter"),
+                ("CSS", "div[id*='manufacturer']"),
+                ("CSS", "div[class*='manufacturer']"),
+            ]
+            
+            manufacturer_div = None
+            for selector_type, selector in manufacturer_sections:
+                try:
+                    if selector_type == "ID":
+                        manufacturer_div = self.driver.find_element(By.ID, selector)
+                    elif selector_type == "CLASS":
+                        manufacturer_div = self.driver.find_element(By.CLASS_NAME, selector)
+                    elif selector_type == "CSS":
+                        manufacturer_div = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    
+                    if manufacturer_div:
+                        logger.info(f"✅ Found manufacturer section using {selector_type}: {selector}")
+                        break
+                except:
+                    continue
+            
+            if manufacturer_div:
+                # Find all checkboxes within this div
+                manufacturer_checkboxes = manufacturer_div.find_elements(By.CSS_SELECTOR, "input[type='checkbox']")
+                logger.info(f"Found {len(manufacturer_checkboxes)} manufacturer checkboxes")
+                
+                # Look for Microsoft checkboxes specifically
+                microsoft_found = False
+                microsoft_count = 0
+                
+                # First, look for the specific VendNo=19215
+                logger.info("🔍 Looking for Microsoft checkbox with VendNo=19215...")
+                
+                for i, checkbox in enumerate(manufacturer_checkboxes):
+                    try:
+                        # Get all attributes
+                        cb_value = checkbox.get_attribute('value') or ''
+                        cb_id = checkbox.get_attribute('id') or ''
+                        cb_name = checkbox.get_attribute('name') or ''
+                        cb_onclick = checkbox.get_attribute('onclick') or ''
+                        
+                        # Log first 5 checkboxes for debugging
+                        if i < 5:
+                            logger.info(f"  Checkbox {i}: value='{cb_value}', id='{cb_id}', name='{cb_name}'")
+                        
+                        # Check for Microsoft checkboxes - either vendNo=19215 or mfg=23073
+                        is_microsoft_checkbox = False
+                        checkbox_type = ""
+                        
+                        if '19215' in cb_value and cb_name == 'vendNo':
+                            is_microsoft_checkbox = True
+                            checkbox_type = "vendNo=19215"
+                        elif '23073' in cb_value and cb_name == 'mfg':
+                            is_microsoft_checkbox = True
+                            checkbox_type = "mfg=23073"
+                        
+                        if is_microsoft_checkbox:
+                            logger.info(f"🎯 Found Microsoft checkbox: {checkbox_type}")
+                            logger.info(f"  Value: '{cb_value}'")
+                            logger.info(f"  ID: '{cb_id}'")
+                            logger.info(f"  Name: '{cb_name}'")
+                            
+                            if not checkbox.is_selected():
+                                try:
+                                    # Try to click the checkbox directly
+                                    checkbox.click()
+                                    logger.info(f"✅ Selected Microsoft checkbox {checkbox_type} (direct click)")
+                                except:
+                                    try:
+                                        # If direct click fails, try clicking the parent label
+                                        parent_label = checkbox.find_element(By.XPATH, "./ancestor::label")
+                                        parent_label.click()
+                                        logger.info(f"✅ Selected Microsoft checkbox {checkbox_type} (label click)")
+                                    except:
+                                        try:
+                                            # If that fails, try using JavaScript
+                                            self.driver.execute_script("arguments[0].click();", checkbox)
+                                            logger.info(f"✅ Selected Microsoft checkbox {checkbox_type} (JS click)")
+                                        except Exception as e:
+                                            logger.error(f"❌ Failed to click Microsoft checkbox {checkbox_type}: {e}")
+                                microsoft_count += 1
+                            else:
+                                logger.info(f"✅ Microsoft checkbox {checkbox_type} already selected")
+                                microsoft_count += 1
+                            microsoft_found = True
+                            time.sleep(0.5)
+                            continue
+                        
+                        # Also check for Microsoft text in labels
+                        # Try to find associated label
+                        label_text = ''
+                        try:
+                            # Find parent label
+                            parent_label = checkbox.find_element(By.XPATH, "./ancestor::label")
+                            label_text = parent_label.text.strip()
+                        except:
+                            try:
+                                # Try to find sibling span
+                                sibling_span = checkbox.find_element(By.XPATH, "./following-sibling::span")
+                                label_text = sibling_span.text.strip()
+                            except:
+                                pass
+                        
+                        # Check if this is a Microsoft checkbox by text (including "INCASE DESIGNED BY MICROSOFT")
+                        search_text = (cb_value + ' ' + cb_id + ' ' + cb_name + ' ' + label_text).upper()
+                        if any(ms_variant in search_text for ms_variant in ['MICROSOFT', 'MSFT']):
+                            logger.info(f"🎯 Found Microsoft-related checkbox: '{label_text}'")
+                            logger.info(f"  Value: '{cb_value}', Name: '{cb_name}'")
+                            
+                            # Select this Microsoft checkbox
+                            if not checkbox.is_selected():
+                                try:
+                                    checkbox.click()
+                                    logger.info(f"✅ Selected Microsoft checkbox: '{label_text}' (direct click)")
+                                except:
+                                    try:
+                                        parent_label = checkbox.find_element(By.XPATH, "./ancestor::label")
+                                        parent_label.click()
+                                        logger.info(f"✅ Selected Microsoft checkbox: '{label_text}' (label click)")
+                                    except:
+                                        try:
+                                            self.driver.execute_script("arguments[0].click();", checkbox)
+                                            logger.info(f"✅ Selected Microsoft checkbox: '{label_text}' (JS click)")
+                                        except Exception as e:
+                                            logger.error(f"❌ Failed to click Microsoft checkbox '{label_text}': {e}")
+                                microsoft_count += 1
+                            else:
+                                logger.info(f"✅ Microsoft checkbox already selected: '{label_text}'")
+                                microsoft_count += 1
+                            microsoft_found = True
+                            time.sleep(0.5)
+                    
+                    except Exception as e:
+                        logger.debug(f"Error processing manufacturer checkbox {i}: {e}")
+                        continue
+                
+                if microsoft_found:
+                    logger.info(f"✅ Selected {microsoft_count} Microsoft manufacturer checkboxes")
+                else:
+                    logger.warning("⚠️ No Microsoft checkboxes found in manufacturer section")
+                    logger.info("💡 Trying alternative approach - looking for all checkboxes on page with VendNo=19215...")
+                    
+                    # Try looking at ALL checkboxes on the page
+                    all_checkboxes = self.driver.find_elements(By.CSS_SELECTOR, "input[type='checkbox']")
+                    logger.info(f"Found {len(all_checkboxes)} total checkboxes on page")
+                    
+                    for checkbox in all_checkboxes:
+                        try:
+                            cb_value = checkbox.get_attribute('value') or ''
+                            cb_onclick = checkbox.get_attribute('onclick') or ''
+                            
+                            cb_name = checkbox.get_attribute('name') or ''
+                            
+                            # Check for Microsoft checkboxes
+                            is_microsoft = False
+                            checkbox_type = ""
+                            
+                            if '19215' in cb_value and 'vendNo' in cb_name:
+                                is_microsoft = True
+                                checkbox_type = "vendNo=19215"
+                            elif '23073' in cb_value and 'mfg' in cb_name:
+                                is_microsoft = True
+                                checkbox_type = "mfg=23073"
+                            
+                            if is_microsoft:
+                                logger.info(f"🎯 Found Microsoft checkbox outside manufacturer div: {checkbox_type}")
+                                logger.info(f"  Value: '{cb_value}'")
+                                
+                                if not checkbox.is_selected():
+                                    try:
+                                        # Try to click the checkbox directly
+                                        checkbox.click()
+                                        logger.info(f"✅ Selected Microsoft checkbox {checkbox_type} (direct click)")
+                                    except:
+                                        try:
+                                            # If direct click fails, try clicking the parent label
+                                            parent_label = checkbox.find_element(By.XPATH, "./ancestor::label")
+                                            parent_label.click()
+                                            logger.info(f"✅ Selected Microsoft checkbox {checkbox_type} (label click)")
+                                        except:
+                                            try:
+                                                # If that fails, try using JavaScript
+                                                self.driver.execute_script("arguments[0].click();", checkbox)
+                                                logger.info(f"✅ Selected Microsoft checkbox {checkbox_type} (JS click)")
+                                            except Exception as e:
+                                                logger.error(f"❌ Failed to click Microsoft checkbox {checkbox_type}: {e}")
+                                    microsoft_found = True
+                                    time.sleep(0.5)
+                                    # Don't break - continue looking for other Microsoft checkboxes
+                        except:
+                            continue
+                
+            else:
+                logger.error("❌ Could not find manufacturer filter section")
+            
+            # Now analyze the rest of the page structure
+            logger.info("🔍 Analyzing page structure for additional filters...")
+            
+            # Look for all form elements and inputs on the page
+            all_forms = self.driver.find_elements(By.TAG_NAME, "form")
+            logger.info(f"Found {len(all_forms)} forms on the page")
+            
+            all_selects = self.driver.find_elements(By.TAG_NAME, "select")
+            logger.info(f"Found {len(all_selects)} select dropdowns on the page")
+            
+            all_checkboxes = self.driver.find_elements(By.CSS_SELECTOR, "input[type='checkbox']")
+            logger.info(f"Found {len(all_checkboxes)} checkboxes on the page")
+            
+            # Analyze each select dropdown for manufacturer-related options
+            for i, select_elem in enumerate(all_selects):
+                try:
+                    select_id = select_elem.get_attribute('id') or 'no-id'
+                    select_name = select_elem.get_attribute('name') or 'no-name'
+                    select_class = select_elem.get_attribute('class') or 'no-class'
+                    
+                    logger.info(f"  Select {i+1}: id='{select_id}', name='{select_name}', class='{select_class}'")
+                    
+                    # Check if this might be a manufacturer dropdown
+                    if any(keyword in (select_id + select_name + select_class).lower() 
+                           for keyword in ['manufacturer', 'mfg', 'vendor', 'brand']):
+                        logger.info(f"  📍 Potential manufacturer dropdown found: {select_id}")
+                        
+                        # Analyze options in this dropdown
+                        try:
+                            select_obj = Select(select_elem)
+                            options = [opt.text.strip() for opt in select_obj.options if opt.text.strip()]
+                            logger.info(f"  Options ({len(options)}): {options[:15]}...")  # Show first 15
+                            
+                            # Look for Microsoft options
+                            microsoft_matches = []
+                            for opt_text in options:
+                                if any(ms_variant in opt_text.lower() 
+                                       for ms_variant in ['microsoft', 'msft']):
+                                    microsoft_matches.append(opt_text)
+                            
+                            if microsoft_matches:
+                                logger.info(f"  🎯 Found Microsoft options: {microsoft_matches}")
+                                
+                                # Try to select all Microsoft options (if multi-select) or the first one
+                                for ms_option in microsoft_matches:
+                                    try:
+                                        select_obj.select_by_visible_text(ms_option)
+                                        logger.info(f"  ✅ Selected: {ms_option}")
+                                        time.sleep(1)
+                                    except Exception as e:
+                                        logger.warning(f"  ⚠️ Failed to select {ms_option}: {e}")
+                                
+                                return True
+                            
+                        except Exception as e:
+                            logger.debug(f"  Error analyzing select options: {e}")
+                
+                except Exception as e:
+                    logger.debug(f"Error analyzing select {i}: {e}")
+            
+            
+            # Check for any error messages on the page
+            logger.info("🔍 Checking for error messages...")
+            error_selectors = [
+                ".error", ".alert", ".message", ".warning", 
+                "[class*='error']", "[class*='alert']", "[id*='error']",
+                ".validation-error", ".form-error"
+            ]
+            
+            for selector in error_selectors:
+                try:
+                    error_elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    for error_elem in error_elements:
+                        if error_elem.is_displayed() and error_elem.text.strip():
+                            logger.warning(f"⚠️ Page error/message: {error_elem.text.strip()}")
+                except:
+                    continue
             
             # Try to enable Short Description box
             self.enable_short_description()
             
-            # Try to select "In Stock Only" checkbox
-            self.enable_in_stock_only()
+            # Try to select "In Stock Only" checkbox (commented out for debugging)
+            # self.enable_in_stock_only()
             
             # Try to trigger search/filter application
             self.trigger_search()
+            
+            # Try to download the results after applying filters
+            logger.info("📥 Attempting to download filtered results...")
+            if self.download_results():
+                logger.info("✅ Download initiated successfully")
+            else:
+                logger.warning("⚠️ Could not initiate download")
             
             return True
             
@@ -523,6 +830,70 @@ class LocalProductionScraper:
             
         except Exception as e:
             logger.error(f"❌ Failed to trigger search: {str(e)}")
+            return False
+    
+    def download_results(self):
+        """Click the download button to download the filtered results"""
+        logger.info("💾 Looking for download button...")
+        
+        try:
+            # Try different selectors for the download button
+            download_selectors = [
+                ("XPATH", "//a[contains(text(), 'Download')]", "Download Link Text"),
+                ("XPATH", "//button[contains(text(), 'Download')]", "Download Button Text"),
+                ("XPATH", "//input[@value='Download']", "Download Input Value"),
+                ("XPATH", "//a[contains(@href, 'download')]", "Download Link Href"),
+                ("CSS", "a.download-button", "Download Link Class"),
+                ("CSS", "button.download-button", "Download Button Class"),
+                ("CSS", ".download-link", "Download Link"),
+                ("ID", "downloadButton", "Download Button ID"),
+                ("ID", "downloadLink", "Download Link ID"),
+                ("CSS", "a[href*='download']", "Download Href CSS"),
+                ("XPATH", "//a[@class='button' and contains(text(), 'Download')]", "Download Button Link"),
+            ]
+            
+            for selector_type, selector, description in download_selectors:
+                try:
+                    if selector_type == "ID":
+                        element = self.driver.find_element(By.ID, selector)
+                    elif selector_type == "CSS":
+                        element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    elif selector_type == "XPATH":
+                        element = self.driver.find_element(By.XPATH, selector)
+                    
+                    if element and element.is_displayed():
+                        # Log the element details
+                        href = element.get_attribute('href') if element.tag_name == 'a' else 'N/A'
+                        logger.info(f"✅ Found download element: {description}")
+                        logger.info(f"  Tag: {element.tag_name}, Text: '{element.text}', Href: {href}")
+                        
+                        # Click the download button
+                        element.click()
+                        logger.info("✅ Clicked download button")
+                        
+                        # Wait for download to start
+                        time.sleep(5)
+                        
+                        # Check if there's a new window/tab (some downloads open in new tab)
+                        if len(self.driver.window_handles) > 1:
+                            # Switch to the new tab
+                            self.driver.switch_to.window(self.driver.window_handles[-1])
+                            logger.info("✅ Switched to download tab")
+                            time.sleep(2)
+                            # Switch back
+                            self.driver.switch_to.window(self.driver.window_handles[0])
+                        
+                        return True
+                        
+                except Exception as e:
+                    logger.debug(f"Download selector failed ({description}): {e}")
+                    continue
+            
+            logger.warning("⚠️ Could not find download button")
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to download results: {str(e)}")
             return False
     
     def extract_product_data(self):
