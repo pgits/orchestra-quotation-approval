@@ -1,0 +1,178 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "triggers": {
+      "When_a_new_email_arrives": {
+        "type": "ApiConnectionWebhook",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['office365']['connectionId']"
+            }
+          },
+          "body": {
+            "NotificationUrl": "@{listCallbackUrl()}"
+          },
+          "path": "/Mail/OnNewEmail",
+          "queries": {
+            "folderPath": "Inbox",
+            "from": "do_not_reply@tdsynnex.com",
+            "to": "pgits@hexalinks.com",
+            "hasAttachments": true
+          }
+        }
+      }
+    },
+    "actions": {
+      "Get_email_details": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['office365']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/Mail/@{encodeURIComponent(triggerBody()?['Id'])}"
+        },
+        "runAfter": {}
+      },
+      "Condition_Check_Microsoft_Subject": {
+        "type": "If",
+        "expression": {
+          "and": [
+            {
+              "contains": [
+                "@outputs('Get_email_details')?['body/Subject']",
+                "Microsoft"
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "Get_attachments": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['office365']['connectionId']"
+                }
+              },
+              "method": "get",
+              "path": "/Mail/@{encodeURIComponent(triggerBody()?['Id'])}/Attachments"
+            }
+          },
+          "For_each_attachment": {
+            "type": "Foreach",
+            "foreach": "@outputs('Get_attachments')?['body/value']",
+            "actions": {
+              "Get_attachment_content": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['office365']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/Mail/@{encodeURIComponent(triggerBody()?['Id'])}/Attachments/@{encodeURIComponent(items('For_each_attachment')?['Id'])}"
+                }
+              },
+              "Upload_to_SharePoint": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "post",
+                  "path": "/datasets/@{encodeURIComponent('https://hexalinks.sharepoint.com/sites/nathans-hardware-buddy')}/files",
+                  "queries": {
+                    "folderPath": "/Shared Documents/Knowledge Base",
+                    "name": "@{items('For_each_attachment')?['Name']}"
+                  },
+                  "body": "@outputs('Get_attachment_content')?['body']"
+                },
+                "runAfter": {
+                  "Get_attachment_content": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Update_Copilot_Knowledge_Base": {
+                "type": "Http",
+                "inputs": {
+                  "method": "POST",
+                  "uri": "https://api.powerplatform.microsoft.com/copilot/environments/@{parameters('environment_id')}/bots/@{parameters('bot_id')}/knowledgebase/refresh",
+                  "headers": {
+                    "Authorization": "Bearer @{parameters('access_token')}",
+                    "Content-Type": "application/json"
+                  },
+                  "body": {
+                    "source": "@{outputs('Upload_to_SharePoint')?['body/Path']}",
+                    "type": "SharePointDocument"
+                  }
+                },
+                "runAfter": {
+                  "Upload_to_SharePoint": [
+                    "Succeeded"
+                  ]
+                }
+              }
+            },
+            "runAfter": {
+              "Get_attachments": [
+                "Succeeded"
+              ]
+            }
+          }
+        },
+        "else": {
+          "actions": {
+            "Send_notification_non_Microsoft": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "path": "/Mail",
+                "body": {
+                  "To": "pgits@hexalinks.com",
+                  "Subject": "TD SYNNEX Email Received - Not Microsoft Related",
+                  "Body": "Received email from TD SYNNEX but subject doesn't contain 'Microsoft'. Please review if needed."
+                }
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "Get_email_details": [
+            "Succeeded"
+          ]
+        }
+      }
+    }
+  },
+  "parameters": {
+    "$connections": {
+      "value": {
+        "office365": {
+          "connectionId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Web/connections/office365",
+          "connectionName": "office365",
+          "id": "/subscriptions/{subscription-id}/providers/Microsoft.Web/locations/{location}/managedApis/office365"
+        },
+        "sharepointonline": {
+          "connectionId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Web/connections/sharepointonline",
+          "connectionName": "sharepointonline",
+          "id": "/subscriptions/{subscription-id}/providers/Microsoft.Web/locations/{location}/managedApis/sharepointonline"
+        }
+      }
+    }
+  }
+}

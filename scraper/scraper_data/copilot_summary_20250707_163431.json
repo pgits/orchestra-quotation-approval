@@ -1,0 +1,69 @@
+{
+  "session_id": "20250707_163431",
+  "timestamp": "2025-07-07T16:34:36.038548",
+  "summary": {
+    "total_microsoft_products": 8,
+    "categories": [
+      "Cloud Services & Identity",
+      "Database Software",
+      "Productivity Software",
+      "Communication & Collaboration",
+      "Tablets & 2-in-1",
+      "Security Software",
+      "Operating Systems",
+      "Development Tools"
+    ],
+    "product_types": {
+      "software_licenses": 5,
+      "subscriptions": 4,
+      "hardware": 1,
+      "cloud_services": 1
+    },
+    "pricing": {
+      "one_time_purchases": 4,
+      "monthly_subscriptions": 4,
+      "average_one_time_price": "$649.50",
+      "price_range": "$199.99 - $999.99"
+    },
+    "availability": {
+      "in_stock": 4,
+      "available_on_demand": 4
+    }
+  },
+  "featured_products": [
+    {
+      "name": "Microsoft Windows 11 Pro",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "FQC-10528",
+      "price": "$199.99",
+      "category": "Operating Systems",
+      "description": "Microsoft Windows 11 Pro - Full Version - License",
+      "availability": "In Stock",
+      "vendor_stock": 2500,
+      "last_updated": "2025-07-07T16:34:31.528685"
+    },
+    {
+      "name": "Microsoft Office 365 Business Premium",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "KLQ-00216",
+      "price": "$22.00/month",
+      "category": "Productivity Software",
+      "description": "Microsoft Office 365 Business Premium Subscription - Annual",
+      "availability": "Available",
+      "vendor_stock": "Unlimited",
+      "last_updated": "2025-07-07T16:34:31.528700"
+    },
+    {
+      "name": "Microsoft Surface Pro 9",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "QIL-00001",
+      "price": "$999.99",
+      "category": "Tablets & 2-in-1",
+      "description": "Microsoft Surface Pro 9 - 13\" Touchscreen - Intel Core i5",
+      "availability": "In Stock",
+      "vendor_stock": 150,
+      "last_updated": "2025-07-07T16:34:31.528701"
+    }
+  ],
+  "integration_ready": true
+}

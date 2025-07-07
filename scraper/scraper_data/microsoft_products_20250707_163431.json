@@ -1,0 +1,97 @@
+{
+  "session_id": "20250707_163431",
+  "timestamp": "2025-07-07T16:34:36.037339",
+  "scraper_version": "1.0.0",
+  "source": "TD SYNNEX Portal (Simulated)",
+  "total_products": 8,
+  "products": [
+    {
+      "name": "Microsoft Windows 11 Pro",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "FQC-10528",
+      "price": "$199.99",
+      "category": "Operating Systems",
+      "description": "Microsoft Windows 11 Pro - Full Version - License",
+      "availability": "In Stock",
+      "vendor_stock": 2500,
+      "last_updated": "2025-07-07T16:34:31.528685"
+    },
+    {
+      "name": "Microsoft Office 365 Business Premium",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "KLQ-00216",
+      "price": "$22.00/month",
+      "category": "Productivity Software",
+      "description": "Microsoft Office 365 Business Premium Subscription - Annual",
+      "availability": "Available",
+      "vendor_stock": "Unlimited",
+      "last_updated": "2025-07-07T16:34:31.528700"
+    },
+    {
+      "name": "Microsoft Surface Pro 9",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "QIL-00001",
+      "price": "$999.99",
+      "category": "Tablets & 2-in-1",
+      "description": "Microsoft Surface Pro 9 - 13\" Touchscreen - Intel Core i5",
+      "availability": "In Stock",
+      "vendor_stock": 150,
+      "last_updated": "2025-07-07T16:34:31.528701"
+    },
+    {
+      "name": "Microsoft Teams Phone System",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "CFQ7TTC0LH16",
+      "price": "$8.00/month",
+      "category": "Communication & Collaboration",
+      "description": "Microsoft Teams Phone System License - Monthly Subscription",
+      "availability": "Available",
+      "vendor_stock": "Unlimited",
+      "last_updated": "2025-07-07T16:34:31.528702"
+    },
+    {
+      "name": "Microsoft Azure Active Directory Premium P2",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "CFQ7TTC0LH0P",
+      "price": "$9.00/month",
+      "category": "Cloud Services & Identity",
+      "description": "Azure Active Directory Premium P2 License - Per User Monthly",
+      "availability": "Available",
+      "vendor_stock": "Unlimited",
+      "last_updated": "2025-07-07T16:34:31.528704"
+    },
+    {
+      "name": "Microsoft SQL Server 2022 Standard",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "228-11548",
+      "price": "$899.00",
+      "category": "Database Software",
+      "description": "Microsoft SQL Server 2022 Standard Edition - 2 Core License",
+      "availability": "In Stock",
+      "vendor_stock": 75,
+      "last_updated": "2025-07-07T16:34:31.528705"
+    },
+    {
+      "name": "Microsoft Visual Studio Professional 2022",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "C5E-01389",
+      "price": "$499.00",
+      "category": "Development Tools",
+      "description": "Microsoft Visual Studio Professional 2022 - Single License",
+      "availability": "In Stock",
+      "vendor_stock": 200,
+      "last_updated": "2025-07-07T16:34:31.528705"
+    },
+    {
+      "name": "Microsoft Defender for Business",
+      "manufacturer": "Microsoft Corporation",
+      "sku": "CFQ7TTC0LDG7",
+      "price": "$3.00/month",
+      "category": "Security Software",
+      "description": "Microsoft Defender for Business - Per User Monthly Subscription",
+      "availability": "Available",
+      "vendor_stock": "Unlimited",
+      "last_updated": "2025-07-07T16:34:31.528706"
+    }
+  ]
+}

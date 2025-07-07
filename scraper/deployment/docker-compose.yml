@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  td-synnex-scraper:
+    build: .
+    container_name: td-synnex-scraper
+    restart: unless-stopped
+    environment:
+      - TDSYNNEX_USERNAME=${TDSYNNEX_USERNAME}
+      - TDSYNNEX_PASSWORD=${TDSYNNEX_PASSWORD}
+      - EMAIL_USERNAME=${EMAIL_USERNAME}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - IMAP_SERVER=${IMAP_SERVER:-imap.gmail.com}
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - scraper-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: scraper-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - scraper-network
+
+  postgres:
+    image: postgres:15
+    container_name: scraper-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=scraper
+      - POSTGRES_USER=scraper
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - scraper-network
+
+  monitoring:
+    image: prom/prometheus
+    container_name: scraper-monitoring
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - scraper-network
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  scraper-network:
+    driver: bridge

@@ -1,0 +1,79 @@
+================================================================================
+TD SYNNEX MICROSOFT PRODUCT SCRAPER REPORT
+================================================================================
+Session ID: 20250707_163431
+Timestamp: 2025-07-07 16:34:36 
+Source: TD SYNNEX Portal (Local Test Simulation)
+
+SUMMARY:
+├── Total Microsoft Products Found: 8
+├── Product Categories: 8
+├── In Stock Items: 4
+└── Subscription Services: 4
+
+PRODUCT BREAKDOWN BY CATEGORY:
+----------------------------------------
+
+📁 OPERATING SYSTEMS (1 products)
+   1. Microsoft Windows 11 Pro
+      SKU: FQC-10528 | Price: $199.99
+      Status: In Stock | Stock: 2500
+      Description: Microsoft Windows 11 Pro - Full Version - License
+
+📁 PRODUCTIVITY SOFTWARE (1 products)
+   1. Microsoft Office 365 Business Premium
+      SKU: KLQ-00216 | Price: $22.00/month
+      Status: Available | Stock: Unlimited
+      Description: Microsoft Office 365 Business Premium Subscription - Annual
+
+📁 TABLETS & 2-IN-1 (1 products)
+   1. Microsoft Surface Pro 9
+      SKU: QIL-00001 | Price: $999.99
+      Status: In Stock | Stock: 150
+      Description: Microsoft Surface Pro 9 - 13" Touchscreen - Intel Core i5
+
+📁 COMMUNICATION & COLLABORATION (1 products)
+   1. Microsoft Teams Phone System
+      SKU: CFQ7TTC0LH16 | Price: $8.00/month
+      Status: Available | Stock: Unlimited
+      Description: Microsoft Teams Phone System License - Monthly Subscription
+
+📁 CLOUD SERVICES & IDENTITY (1 products)
+   1. Microsoft Azure Active Directory Premium P2
+      SKU: CFQ7TTC0LH0P | Price: $9.00/month
+      Status: Available | Stock: Unlimited
+      Description: Azure Active Directory Premium P2 License - Per User Monthly
+
+📁 DATABASE SOFTWARE (1 products)
+   1. Microsoft SQL Server 2022 Standard
+      SKU: 228-11548 | Price: $899.00
+      Status: In Stock | Stock: 75
+      Description: Microsoft SQL Server 2022 Standard Edition - 2 Core License
+
+📁 DEVELOPMENT TOOLS (1 products)
+   1. Microsoft Visual Studio Professional 2022
+      SKU: C5E-01389 | Price: $499.00
+      Status: In Stock | Stock: 200
+      Description: Microsoft Visual Studio Professional 2022 - Single License
+
+📁 SECURITY SOFTWARE (1 products)
+   1. Microsoft Defender for Business
+      SKU: CFQ7TTC0LDG7 | Price: $3.00/month
+      Status: Available | Stock: Unlimited
+      Description: Microsoft Defender for Business - Per User Monthly Subscription
+
+================================================================================
+INTEGRATION STATUS:
+✅ Data exported to JSON format
+✅ Copilot Studio summary generated
+✅ Power Automate integration ready
+✅ SharePoint upload prepared
+
+NEXT STEPS:
+1. Review product data for accuracy
+2. Trigger Power Automate flow
+3. Update Copilot knowledge base
+4. Schedule next scraping session
+
+Report generated: 2025-07-07T16:34:36.039155
+================================================================================

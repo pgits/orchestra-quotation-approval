@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: td-synnex-scraper
+  namespace: scraper
+  labels:
+    app: td-synnex-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: td-synnex-scraper
+  template:
+    metadata:
+      labels:
+        app: td-synnex-scraper
+    spec:
+      containers:
+      - name: scraper
+        image: your-registry/td-synnex-scraper:latest
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "1"
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: TDSYNNEX_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: td-synnex-credentials
+              key: username
+        - name: TDSYNNEX_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: td-synnex-credentials
+              key: password
+        - name: EMAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: email-credentials
+              key: username
+        - name: EMAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: email-credentials
+              key: password
+        - name: IMAP_SERVER
+          value: "imap.gmail.com"
+        - name: SMTP_SERVER
+          value: "smtp.gmail.com"
+        - name: SMTP_PORT
+          value: "587"
+        - name: LOG_LEVEL
+          value: "INFO"
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+        - name: data
+          mountPath: /app/data
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: logs
+        persistentVolumeClaim:
+          claimName: scraper-logs-pvc
+      - name: data
+        persistentVolumeClaim:
+          claimName: scraper-data-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scraper-logs-pvc
+  namespace: scraper
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scraper-data-pvc
+  namespace: scraper
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi

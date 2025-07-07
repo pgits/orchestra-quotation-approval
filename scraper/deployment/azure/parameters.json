@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "containerName": {
+      "value": "td-synnex-scraper"
+    },
+    "tdSynnexUsername": {
+      "value": "pgits@hexalinks.com"
+    },
+    "tdSynnexPassword": {
+      "value": "M1ddaugh!xennys"
+    },
+    "emailUsername": {
+      "value": "pgits@hexalinks.com"
+    },
+    "emailPassword": {
+      "value": "M1ddaugh!etan"
+    }
+  }
+}

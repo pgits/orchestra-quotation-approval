@@ -1,0 +1,76 @@
+{
+  "name": "Nathan's Hardware Buddy v.1",
+  "description": "Specialized Microsoft product expert with real-time TD SYNNEX inventory knowledge",
+  "version": "1.0",
+  "configuration": {
+    "knowledgeBase": {
+      "sources": [
+        {
+          "type": "SharePoint",
+          "url": "https://hexalinks.sharepoint.com/sites/nathans-hardware-buddy/Shared Documents/Knowledge Base",
+          "refreshFrequency": "OnUpdate",
+          "indexingRules": {
+            "includeFileTypes": [".csv", ".xlsx", ".txt"],
+            "excludePatterns": ["temp_*", "staging_*"],
+            "maxFileSize": "50MB"
+          }
+        }
+      ],
+      "dataRetention": {
+        "policy": "AtomicReplacement",
+        "stagingEnabled": true,
+        "validationRequired": true
+      }
+    },
+    "conversationFlow": {
+      "greeting": "Hi! I'm Nathan's Hardware Buddy v.1, your Microsoft product specialist. I have access to real-time TD SYNNEX inventory data updated twice daily. How can I help you today?",
+      "capabilities": [
+        "Microsoft product availability checks",
+        "Real-time pricing information",
+        "Product specifications and comparisons",
+        "Inventory status and stock levels",
+        "Product recommendations",
+        "Technical specifications"
+      ],
+      "escalation": {
+        "email": "pgits@hexalinks.com",
+        "triggers": ["complex technical issues", "pricing discrepancies", "system errors"]
+      }
+    },
+    "contentFilters": {
+      "microsoftFocus": {
+        "enabled": true,
+        "categories": [
+          "Surface devices",
+          "Xbox gaming",
+          "Office 365/Microsoft 365",
+          "Windows licensing",
+          "Azure services",
+          "Dynamics 365",
+          "Power Platform",
+          "Visual Studio",
+          "SQL Server",
+          "Exchange",
+          "Teams",
+          "Security solutions"
+        ]
+      }
+    },
+    "integrations": {
+      "dataSource": {
+        "name": "TD SYNNEX Automated Scraper",
+        "updateFrequency": "Twice daily (10:00 AM & 5:55 PM EST)",
+        "lastUpdate": "Real-time tracking",
+        "reliability": "Atomic replacement ensures data integrity"
+      },
+      "notifications": {
+        "dataUpdateSuccess": false,
+        "dataUpdateFailure": {
+          "enabled": true,
+          "recipient": "pgits@hexalinks.com"
+        },
+        "userQueries": false
+      }
+    }
+  }
+}
