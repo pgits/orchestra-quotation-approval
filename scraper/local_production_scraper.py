@@ -648,8 +648,8 @@ class LocalProductionScraper:
             self.set_file_format_cr_mac()
             self.set_field_delimiter_semicolon()
             
-            # Try to select "In Stock Only" checkbox (commented out for debugging)
-            # self.enable_in_stock_only()
+            # Enable "In Stock Only" checkbox
+            self.enable_in_stock_only()
             
             # Try to trigger search/filter application
             self.trigger_search()
@@ -837,22 +837,19 @@ class LocalProductionScraper:
         logger.info("📦 Enabling 'In Stock Only' option...")
         
         try:
-            # Try specific selectors for the "In Stock Only" checkbox
+            # Based on the HTML provided: <input type="checkbox" name="inStock" id="inStock" value="true" class="ui-checkbox">
             in_stock_selectors = [
-                ("NAME", "tab-realtime", "In Stock Only Name"),
-                ("ID", "tab-realtime", "In Stock Only ID"),
-                ("CSS", ".tab-realtime", "In Stock Only Class"),
-                ("CSS", "input[name='tab-realtime']", "In Stock Only CSS Name"),
-                ("CSS", "input[id='tab-realtime']", "In Stock Only CSS ID"),
-                ("CSS", "input[class*='tab-realtime']", "In Stock Only CSS Class"),
-                ("XPATH", "//input[@name='tab-realtime']", "In Stock Only XPath Name"),
-                ("XPATH", "//input[@id='tab-realtime']", "In Stock Only XPath ID"),
-                ("XPATH", "//input[@class='tab-realtime']", "In Stock Only XPath Class"),
-                ("XPATH", "//input[contains(@class, 'tab-realtime')]", "In Stock Only XPath Class Contains"),
-                ("XPATH", "//label[contains(text(), 'In Stock Only')]/..//input", "In Stock Only Label"),
-                ("XPATH", "//label[contains(text(), 'In Stock')]/..//input", "In Stock Label"),
-                ("XPATH", "//input[@type='checkbox' and contains(@name, 'realtime')]", "Realtime Checkbox"),
-                ("XPATH", "//input[@type='checkbox' and contains(@id, 'realtime')]", "Realtime Checkbox ID"),
+                ("ID", "inStock", "In Stock Only by ID"),
+                ("NAME", "inStock", "In Stock Only by name"),
+                ("CSS", "#inStock", "In Stock Only CSS ID"),
+                ("CSS", "input[name='inStock']", "In Stock Only CSS name"),
+                ("CSS", "input#inStock[type='checkbox']", "In Stock Only specific"),
+                ("XPATH", "//input[@id='inStock']", "In Stock Only XPath ID"),
+                ("XPATH", "//input[@name='inStock' and @type='checkbox']", "In Stock Only XPath name"),
+                ("XPATH", "//input[@id='inStock' and @value='true']", "In Stock Only XPath with value"),
+                # Fallback selectors
+                ("XPATH", "//label[contains(text(), 'In Stock Only')]/..//input", "In Stock Only by label"),
+                ("XPATH", "//label[contains(., 'In Stock Only')]//input", "In Stock Only in label"),
             ]
             
             for selector_type, selector, description in in_stock_selectors:
@@ -867,21 +864,26 @@ class LocalProductionScraper:
                         element = self.driver.find_element(By.XPATH, selector)
                     
                     if element and element.is_displayed():
-                        # Check if it's a checkbox and not already checked
-                        if element.get_attribute('type') == 'checkbox':
-                            if not element.is_selected():
+                        # Check if it's not already checked
+                        if not element.is_selected():
+                            try:
+                                # Try direct click first
                                 element.click()
                                 logger.info(f"✅ Enabled 'In Stock Only': {description}")
-                                time.sleep(1)
-                                return True
-                            else:
-                                logger.info(f"✅ 'In Stock Only' already enabled: {description}")
-                                return True
-                        else:
-                            # Try clicking anyway if it's not a checkbox (might be a button/tab)
-                            element.click()
-                            logger.info(f"✅ Clicked 'In Stock Only' option: {description}")
+                            except:
+                                try:
+                                    # If direct click fails, try clicking the parent label
+                                    parent_label = element.find_element(By.XPATH, "./ancestor::label")
+                                    parent_label.click()
+                                    logger.info(f"✅ Enabled 'In Stock Only' via label: {description}")
+                                except:
+                                    # Last resort: JavaScript click
+                                    self.driver.execute_script("arguments[0].click();", element)
+                                    logger.info(f"✅ Enabled 'In Stock Only' via JS: {description}")
                             time.sleep(1)
+                            return True
+                        else:
+                            logger.info(f"✅ 'In Stock Only' already enabled: {description}")
                             return True
                             
                 except Exception as e:
