@@ -1,0 +1,3 @@
+*.MOV
+scraper/.env
+scraper/.env.example
