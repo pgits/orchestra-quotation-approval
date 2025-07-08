@@ -288,12 +288,6 @@ class LocalProductionScraper:
         logger.info("🔍 Applying Microsoft product filters...")
         
         try:
-            # Save page source for debugging
-            page_source = self.driver.page_source
-            with open("debug_manufacturer_page.html", "w", encoding="utf-8") as f:
-                f.write(page_source)
-            logger.info("💾 Saved page source to debug_manufacturer_page.html for analysis")
-            
             # First, find and use the manufacturer filter search box
             logger.info("🔍 Looking for manufacturer filter search box...")
             
@@ -495,6 +489,13 @@ class LocalProductionScraper:
                 
                 if microsoft_found:
                     logger.info(f"✅ Selected {microsoft_count} Microsoft manufacturer checkboxes")
+                    
+                    # Save debug HTML after selecting Microsoft checkboxes
+                    logger.info("💾 Saving debug HTML after Microsoft checkbox selection...")
+                    page_source = self.driver.page_source
+                    with open("debug_manufacturer_page.html", "w", encoding="utf-8") as f:
+                        f.write(page_source)
+                    logger.info("✅ Saved page source to debug_manufacturer_page.html for analysis")
                 else:
                     logger.warning("⚠️ No Microsoft checkboxes found in manufacturer section")
                     logger.info("💡 Trying alternative approach - looking for all checkboxes on page with VendNo=19215...")
@@ -548,6 +549,14 @@ class LocalProductionScraper:
                                     # Don't break - continue looking for other Microsoft checkboxes
                         except:
                             continue
+                    
+                    # Save debug HTML after alternative Microsoft selection
+                    if microsoft_found:
+                        logger.info("💾 Saving debug HTML after alternative Microsoft checkbox selection...")
+                        page_source = self.driver.page_source
+                        with open("debug_manufacturer_page.html", "w", encoding="utf-8") as f:
+                            f.write(page_source)
+                        logger.info("✅ Saved page source to debug_manufacturer_page.html for analysis")
                 
             else:
                 logger.error("❌ Could not find manufacturer filter section")
@@ -626,12 +635,18 @@ class LocalProductionScraper:
                     error_elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
                     for error_elem in error_elements:
                         if error_elem.is_displayed() and error_elem.text.strip():
+                            # Ignore the 3,000 SKU warning as requested
+                            if "3,000 SKUs" in error_elem.text:
+                                logger.info("📝 Ignoring 3,000 SKU warning (as requested)")
+                                continue
                             logger.warning(f"⚠️ Page error/message: {error_elem.text.strip()}")
                 except:
                     continue
             
-            # Try to enable Short Description box
+            # Apply Other Criteria settings
             self.enable_short_description()
+            self.set_file_format_cr_mac()
+            self.set_field_delimiter_semicolon()
             
             # Try to select "In Stock Only" checkbox (commented out for debugging)
             # self.enable_in_stock_only()
@@ -657,49 +672,44 @@ class LocalProductionScraper:
         logger.info("📝 Enabling Short Description option...")
         
         try:
-            # Try different selectors for Short Description checkbox
+            # Based on the HTML analysis, the correct selector is:
+            # <input type="checkbox" name="fields" value="short_desc" class="ui-checkbox">
             short_desc_selectors = [
-                ("ID", "shortDescription", "Short Description ID"),
-                ("ID", "shortDesc", "Short Desc ID"),
-                ("ID", "includeShortDescription", "Include Short Description"),
-                ("NAME", "shortDescription", "Short Description Name"),
-                ("NAME", "shortDesc", "Short Desc Name"),
-                ("CSS", "input[name*='shortdesc']", "Short Desc CSS Name"),
-                ("CSS", "input[name*='description']", "Description CSS Name"),
-                ("CSS", "input[id*='shortdesc']", "Short Desc CSS ID"),
-                ("CSS", "input[id*='description']", "Description CSS ID"),
-                ("XPATH", "//input[@type='checkbox' and contains(@name, 'description')]", "Description Checkbox"),
-                ("XPATH", "//input[@type='checkbox' and contains(@id, 'description')]", "Description Checkbox ID"),
-                ("XPATH", "//label[contains(text(), 'Short Description')]/..//input", "Short Description Label"),
-                ("XPATH", "//label[contains(text(), 'Description')]/..//input", "Description Label"),
+                ("CSS", "input[name='fields'][value='short_desc']", "Short Description (exact match)"),
+                ("XPATH", "//input[@name='fields' and @value='short_desc']", "Short Description XPath"),
+                ("XPATH", "//span[contains(text(), 'Short Description(150 max)')]/../input", "Short Description by label text"),
+                ("XPATH", "//label[contains(., 'Short Description(150 max)')]//input", "Short Description in label"),
+                ("CSS", "input[type='checkbox'][value='short_desc']", "Short Desc checkbox by value"),
             ]
             
             for selector_type, selector, description in short_desc_selectors:
                 try:
-                    if selector_type == "ID":
-                        element = self.driver.find_element(By.ID, selector)
-                    elif selector_type == "NAME":
-                        element = self.driver.find_element(By.NAME, selector)
-                    elif selector_type == "CSS":
+                    if selector_type == "CSS":
                         element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     elif selector_type == "XPATH":
                         element = self.driver.find_element(By.XPATH, selector)
                     
                     if element and element.is_displayed():
-                        # Check if it's a checkbox and not already checked
-                        if element.get_attribute('type') == 'checkbox' and not element.is_selected():
-                            element.click()
-                            logger.info(f"✅ Enabled Short Description: {description}")
+                        # Check if it's not already checked
+                        if not element.is_selected():
+                            try:
+                                # Try direct click first
+                                element.click()
+                                logger.info(f"✅ Enabled Short Description: {description}")
+                            except:
+                                try:
+                                    # If direct click fails, try clicking the parent label
+                                    parent_label = element.find_element(By.XPATH, "./ancestor::label")
+                                    parent_label.click()
+                                    logger.info(f"✅ Enabled Short Description via label: {description}")
+                                except:
+                                    # Last resort: JavaScript click
+                                    self.driver.execute_script("arguments[0].click();", element)
+                                    logger.info(f"✅ Enabled Short Description via JS: {description}")
                             time.sleep(1)
-                            return True
-                        elif element.get_attribute('type') == 'checkbox' and element.is_selected():
-                            logger.info(f"✅ Short Description already enabled: {description}")
                             return True
                         else:
-                            # Try clicking anyway if it's not a checkbox
-                            element.click()
-                            logger.info(f"✅ Clicked Short Description option: {description}")
-                            time.sleep(1)
+                            logger.info(f"✅ Short Description already enabled: {description}")
                             return True
                             
                 except Exception as e:
@@ -711,6 +721,115 @@ class LocalProductionScraper:
             
         except Exception as e:
             logger.error(f"❌ Failed to enable Short Description: {str(e)}")
+            return False
+    
+    def set_file_format_cr_mac(self):
+        """Set File Format to CR(Mac)"""
+        logger.info("📄 Setting File Format to CR(Mac)...")
+        
+        try:
+            # Based on HTML analysis: <input type="radio" name="fileFormat" value="cr" class="ui-radio">
+            cr_mac_selectors = [
+                ("CSS", "input[name='fileFormat'][value='cr']", "CR(Mac) radio button (exact)"),
+                ("XPATH", "//input[@name='fileFormat' and @value='cr']", "CR(Mac) XPath"),
+                ("XPATH", "//span[contains(text(), 'CR(Mac)')]/../input", "CR(Mac) by label text"),
+                ("XPATH", "//label[contains(., 'CR(Mac)')]//input", "CR(Mac) in label"),
+            ]
+            
+            for selector_type, selector, description in cr_mac_selectors:
+                try:
+                    if selector_type == "CSS":
+                        element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    elif selector_type == "XPATH":
+                        element = self.driver.find_element(By.XPATH, selector)
+                    
+                    if element and element.is_displayed():
+                        # Check if it's not already selected
+                        if not element.is_selected():
+                            try:
+                                # Try direct click first
+                                element.click()
+                                logger.info(f"✅ Selected CR(Mac) format: {description}")
+                            except:
+                                try:
+                                    # If direct click fails, try clicking the parent label
+                                    parent_label = element.find_element(By.XPATH, "./ancestor::label")
+                                    parent_label.click()
+                                    logger.info(f"✅ Selected CR(Mac) via label: {description}")
+                                except:
+                                    # Last resort: JavaScript click
+                                    self.driver.execute_script("arguments[0].click();", element)
+                                    logger.info(f"✅ Selected CR(Mac) via JS: {description}")
+                            time.sleep(1)
+                            return True
+                        else:
+                            logger.info(f"✅ CR(Mac) format already selected: {description}")
+                            return True
+                            
+                except Exception as e:
+                    logger.debug(f"CR(Mac) selector failed ({description}): {e}")
+                    continue
+            
+            logger.warning("⚠️ Could not find CR(Mac) file format option")
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to set CR(Mac) format: {str(e)}")
+            return False
+    
+    def set_field_delimiter_semicolon(self):
+        """Set Field Delimiter to semi-colon"""
+        logger.info("📍 Setting Field Delimiter to semi-colon...")
+        
+        try:
+            # Based on HTML analysis: <input type="radio" name="delimiter" value=";" class="ui-radio">
+            semicolon_selectors = [
+                ("CSS", "input[name='delimiter'][value=';']", "Semi-colon radio button (exact)"),
+                ("XPATH", "//input[@name='delimiter' and @value=';']", "Semi-colon XPath"),
+                ("XPATH", "//span[contains(text(), '; (semi-colon)')]/../input", "Semi-colon by label text"),
+                ("XPATH", "//label[contains(., '; (semi-colon)')]//input", "Semi-colon in label"),
+                ("CSS", "#downloadDelimiter input[value=';']", "Semi-colon in delimiter section"),
+            ]
+            
+            for selector_type, selector, description in semicolon_selectors:
+                try:
+                    if selector_type == "CSS":
+                        element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    elif selector_type == "XPATH":
+                        element = self.driver.find_element(By.XPATH, selector)
+                    
+                    if element and element.is_displayed():
+                        # Check if it's not already selected
+                        if not element.is_selected():
+                            try:
+                                # Try direct click first
+                                element.click()
+                                logger.info(f"✅ Selected semi-colon delimiter: {description}")
+                            except:
+                                try:
+                                    # If direct click fails, try clicking the parent label
+                                    parent_label = element.find_element(By.XPATH, "./ancestor::label")
+                                    parent_label.click()
+                                    logger.info(f"✅ Selected semi-colon via label: {description}")
+                                except:
+                                    # Last resort: JavaScript click
+                                    self.driver.execute_script("arguments[0].click();", element)
+                                    logger.info(f"✅ Selected semi-colon via JS: {description}")
+                            time.sleep(1)
+                            return True
+                        else:
+                            logger.info(f"✅ Semi-colon delimiter already selected: {description}")
+                            return True
+                            
+                except Exception as e:
+                    logger.debug(f"Semi-colon selector failed ({description}): {e}")
+                    continue
+            
+            logger.warning("⚠️ Could not find semi-colon delimiter option")
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to set semi-colon delimiter: {str(e)}")
             return False
     
     def enable_in_stock_only(self):
@@ -837,60 +956,117 @@ class LocalProductionScraper:
         logger.info("💾 Looking for download button...")
         
         try:
-            # Try different selectors for the download button
+            # Use the specific download button selector provided by the user
             download_selectors = [
-                ("XPATH", "//a[contains(text(), 'Download')]", "Download Link Text"),
+                ("XPATH", "//button[@onclick='javascript:submitForm(false);']", "Download button with submitForm"),
+                ("XPATH", "//button[contains(@onclick, 'submitForm(false)')]", "Download button with submitForm contains"),
+                ("CSS", "button.button-main.button-big", "Download button with main/big classes"),
+                ("XPATH", "//button[@class='button-main button-big' and contains(@onclick, 'submitForm')]", "Download button exact match"),
+                ("XPATH", "//button[contains(., 'Download') and contains(@class, 'button-main')]", "Download button by text and class"),
+                ("XPATH", "//button[.//span[text()='Download']]", "Download button by span text"),
+                # Fallback selectors
                 ("XPATH", "//button[contains(text(), 'Download')]", "Download Button Text"),
-                ("XPATH", "//input[@value='Download']", "Download Input Value"),
-                ("XPATH", "//a[contains(@href, 'download')]", "Download Link Href"),
-                ("CSS", "a.download-button", "Download Link Class"),
-                ("CSS", "button.download-button", "Download Button Class"),
-                ("CSS", ".download-link", "Download Link"),
-                ("ID", "downloadButton", "Download Button ID"),
-                ("ID", "downloadLink", "Download Link ID"),
-                ("CSS", "a[href*='download']", "Download Href CSS"),
-                ("XPATH", "//a[@class='button' and contains(text(), 'Download')]", "Download Button Link"),
+                ("CSS", "button[onclick*='submitForm']", "Button with submitForm onclick"),
             ]
             
+            download_button = None
             for selector_type, selector, description in download_selectors:
                 try:
-                    if selector_type == "ID":
-                        element = self.driver.find_element(By.ID, selector)
-                    elif selector_type == "CSS":
-                        element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    if selector_type == "CSS":
+                        download_button = self.driver.find_element(By.CSS_SELECTOR, selector)
                     elif selector_type == "XPATH":
-                        element = self.driver.find_element(By.XPATH, selector)
+                        download_button = self.driver.find_element(By.XPATH, selector)
                     
-                    if element and element.is_displayed():
-                        # Log the element details
-                        href = element.get_attribute('href') if element.tag_name == 'a' else 'N/A'
-                        logger.info(f"✅ Found download element: {description}")
-                        logger.info(f"  Tag: {element.tag_name}, Text: '{element.text}', Href: {href}")
-                        
-                        # Click the download button
-                        element.click()
-                        logger.info("✅ Clicked download button")
-                        
-                        # Wait for download to start
-                        time.sleep(5)
-                        
-                        # Check if there's a new window/tab (some downloads open in new tab)
-                        if len(self.driver.window_handles) > 1:
-                            # Switch to the new tab
-                            self.driver.switch_to.window(self.driver.window_handles[-1])
-                            logger.info("✅ Switched to download tab")
-                            time.sleep(2)
-                            # Switch back
-                            self.driver.switch_to.window(self.driver.window_handles[0])
-                        
-                        return True
+                    if download_button and download_button.is_displayed():
+                        logger.info(f"✅ Found download button: {description}")
+                        logger.info(f"  Classes: {download_button.get_attribute('class')}")
+                        logger.info(f"  OnClick: {download_button.get_attribute('onclick')}")
+                        break
                         
                 except Exception as e:
                     logger.debug(f"Download selector failed ({description}): {e}")
                     continue
             
-            logger.warning("⚠️ Could not find download button")
-            return False
+            if not download_button:
+                logger.warning("⚠️ Could not find download button")
+                return False
+            
+            # Click the download button
+            try:
+                download_button.click()
+                logger.info("✅ Clicked download button")
+            except:
+                # Try JavaScript click if regular click fails
+                self.driver.execute_script("arguments[0].click();", download_button)
+                logger.info("✅ Clicked download button (JavaScript)")
+            
+            # Wait for popup to appear
+            time.sleep(2)
+            
+            # Handle the download price and availability popup
+            logger.info("🔍 Looking for download confirmation popup...")
+            
+            # Try different selectors for the OK button in the popup
+            ok_button_selectors = [
+                ("XPATH", "//button[text()='OK']", "OK button text"),
+                ("XPATH", "//button[contains(text(), 'OK')]", "OK button contains text"),
+                ("XPATH", "//input[@value='OK']", "OK input value"),
+                ("XPATH", "//button[@type='submit' and contains(text(), 'OK')]", "OK submit button"),
+                ("CSS", "button.ok-button", "OK button class"),
+                ("CSS", "button.confirm", "Confirm button class"),
+                ("XPATH", "//div[contains(@class, 'popup')]//button[contains(text(), 'OK')]", "OK button in popup"),
+                ("XPATH", "//div[contains(@class, 'dialog')]//button[contains(text(), 'OK')]", "OK button in dialog"),
+                ("XPATH", "//div[contains(@class, 'modal')]//button[contains(text(), 'OK')]", "OK button in modal"),
+                # More generic popup button selectors
+                ("XPATH", "//button[contains(@class, 'primary') and contains(text(), 'OK')]", "Primary OK button"),
+                ("XPATH", "//button[contains(@class, 'confirm')]", "Confirm button"),
+                ("XPATH", "//button[contains(@class, 'accept')]", "Accept button"),
+            ]
+            
+            ok_button_found = False
+            for selector_type, selector, description in ok_button_selectors:
+                try:
+                    if selector_type == "CSS":
+                        ok_button = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    elif selector_type == "XPATH":
+                        ok_button = self.driver.find_element(By.XPATH, selector)
+                    
+                    if ok_button and ok_button.is_displayed():
+                        logger.info(f"✅ Found OK button in popup: {description}")
+                        
+                        # Click OK button
+                        try:
+                            ok_button.click()
+                            logger.info("✅ Clicked OK button in popup")
+                        except:
+                            # Try JavaScript click if regular click fails
+                            self.driver.execute_script("arguments[0].click();", ok_button)
+                            logger.info("✅ Clicked OK button in popup (JavaScript)")
+                        
+                        ok_button_found = True
+                        break
+                        
+                except Exception as e:
+                    logger.debug(f"OK button selector failed ({description}): {e}")
+                    continue
+            
+            if not ok_button_found:
+                logger.warning("⚠️ Could not find OK button in popup - download may have started anyway")
+            
+            # Wait for download to complete
+            logger.info("⏳ Waiting for download to process...")
+            time.sleep(5)
+            
+            # Check if there's a new window/tab (some downloads open in new tab)
+            if len(self.driver.window_handles) > 1:
+                # Switch to the new tab
+                self.driver.switch_to.window(self.driver.window_handles[-1])
+                logger.info("✅ Switched to download tab")
+                time.sleep(2)
+                # Switch back
+                self.driver.switch_to.window(self.driver.window_handles[0])
+            
+            return True
             
         except Exception as e:
             logger.error(f"❌ Failed to download results: {str(e)}")
