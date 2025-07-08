@@ -645,8 +645,8 @@ class LocalProductionScraper:
             
             # Apply Other Criteria settings
             self.enable_short_description()
-            self.set_file_format_cr_mac()
-            self.set_field_delimiter_semicolon()
+            self.set_file_format_excel()
+            # Skip field delimiter configuration as requested
             
             # Enable "In Stock Only" checkbox
             self.enable_in_stock_only()
@@ -723,25 +723,28 @@ class LocalProductionScraper:
             logger.error(f"❌ Failed to enable Short Description: {str(e)}")
             return False
     
-    def set_file_format_cr_mac(self):
-        """Set File Format to CR(Mac)"""
-        logger.info("📄 Setting File Format to CR(Mac)...")
+    def set_file_format_excel(self):
+        """Set File Format to Microsoft Excel"""
+        logger.info("📄 Setting File Format to Microsoft Excel...")
         
         try:
-            # Based on HTML analysis: <input type="radio" name="fileFormat" value="cr" class="ui-radio">
-            cr_mac_selectors = [
-                ("CSS", "input[name='fileFormat'][value='cr']", "CR(Mac) radio button (exact)"),
-                ("XPATH", "//input[@name='fileFormat' and @value='cr']", "CR(Mac) XPath"),
-                ("XPATH", "//span[contains(text(), 'CR(Mac)')]/../input", "CR(Mac) by label text"),
-                ("XPATH", "//label[contains(., 'CR(Mac)')]//input", "CR(Mac) in label"),
+            # Based on HTML analysis: <input type="radio" name="fileFormat" value="xls" class="ui-radio">
+            excel_selectors = [
+                ("CSS", "input[name='fileFormat'][value='xls']", "Microsoft Excel radio button (exact)"),
+                ("XPATH", "//input[@name='fileFormat' and @value='xls']", "Microsoft Excel XPath"),
+                ("XPATH", "//span[contains(text(), 'Microsoft excel')]/../input", "Microsoft Excel by label text"),
+                ("XPATH", "//label[contains(., 'Microsoft excel')]//input", "Microsoft Excel in label"),
+                ("ID", "downloadExcel", "Download Excel ID"),
             ]
             
-            for selector_type, selector, description in cr_mac_selectors:
+            for selector_type, selector, description in excel_selectors:
                 try:
                     if selector_type == "CSS":
                         element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     elif selector_type == "XPATH":
                         element = self.driver.find_element(By.XPATH, selector)
+                    elif selector_type == "ID":
+                        element = self.driver.find_element(By.ID, selector)
                     
                     if element and element.is_displayed():
                         # Check if it's not already selected
@@ -749,32 +752,32 @@ class LocalProductionScraper:
                             try:
                                 # Try direct click first
                                 element.click()
-                                logger.info(f"✅ Selected CR(Mac) format: {description}")
+                                logger.info(f"✅ Selected Microsoft Excel format: {description}")
                             except:
                                 try:
                                     # If direct click fails, try clicking the parent label
                                     parent_label = element.find_element(By.XPATH, "./ancestor::label")
                                     parent_label.click()
-                                    logger.info(f"✅ Selected CR(Mac) via label: {description}")
+                                    logger.info(f"✅ Selected Microsoft Excel via label: {description}")
                                 except:
                                     # Last resort: JavaScript click
                                     self.driver.execute_script("arguments[0].click();", element)
-                                    logger.info(f"✅ Selected CR(Mac) via JS: {description}")
+                                    logger.info(f"✅ Selected Microsoft Excel via JS: {description}")
                             time.sleep(1)
                             return True
                         else:
-                            logger.info(f"✅ CR(Mac) format already selected: {description}")
+                            logger.info(f"✅ Microsoft Excel format already selected: {description}")
                             return True
                             
                 except Exception as e:
-                    logger.debug(f"CR(Mac) selector failed ({description}): {e}")
+                    logger.debug(f"Microsoft Excel selector failed ({description}): {e}")
                     continue
             
-            logger.warning("⚠️ Could not find CR(Mac) file format option")
+            logger.warning("⚠️ Could not find Microsoft Excel file format option")
             return False
             
         except Exception as e:
-            logger.error(f"❌ Failed to set CR(Mac) format: {str(e)}")
+            logger.error(f"❌ Failed to set Microsoft Excel format: {str(e)}")
             return False
     
     def set_field_delimiter_semicolon(self):
@@ -1006,23 +1009,60 @@ class LocalProductionScraper:
             time.sleep(2)
             
             # Handle the download price and availability popup
-            logger.info("🔍 Looking for download confirmation popup...")
+            logger.info("🔍 Looking for 'Download Price and Availability' confirmation popup...")
+            
+            # First check for popup content to confirm it's the right dialog
+            popup_content_found = False
+            try:
+                # Look for the specific popup content
+                popup_content_selectors = [
+                    ("XPATH", "//*[contains(text(), 'Download Price and Availability')]", "Download Price and Availability text"),
+                    ("XPATH", "//*[contains(text(), 'This file will include up to')]", "File include count text"),
+                    ("XPATH", "//*[contains(text(), 'email will be sent to')]", "Email notification text"),
+                    ("XPATH", "//*[contains(text(), 'pgits@hexalinks.com')]", "Email address confirmation"),
+                ]
+                
+                for selector_type, selector, description in popup_content_selectors:
+                    try:
+                        if selector_type == "XPATH":
+                            popup_element = self.driver.find_element(By.XPATH, selector)
+                        
+                        if popup_element and popup_element.is_displayed():
+                            logger.info(f"✅ Found popup content: {description}")
+                            logger.info(f"   Content: {popup_element.text[:100]}...")
+                            popup_content_found = True
+                            break
+                            
+                    except Exception as e:
+                        logger.debug(f"Popup content selector failed ({description}): {e}")
+                        continue
+                
+                if popup_content_found:
+                    logger.info("✅ Confirmed 'Download Price and Availability' popup is displayed")
+                else:
+                    logger.info("📝 Popup content not found, but continuing to look for OK button")
+                    
+            except Exception as e:
+                logger.debug(f"Error checking popup content: {e}")
             
             # Try different selectors for the OK button in the popup
             ok_button_selectors = [
+                ("ID", "downloadFromEc", "Download From EC button (primary)"),
+                ("CSS", "button[onclick*='downloadFromEc']", "Download button with onclick function"),
+                ("CSS", "#downloadFromEc", "Download From EC ID selector"),
+                ("CSS", ".button-main.button-big", "Main big button class"),
+                ("XPATH", "//button[@id='downloadFromEc']", "Download From EC XPath"),
+                ("XPATH", "//button[contains(@onclick, 'downloadFromEc')]", "Button with downloadFromEc onclick"),
+                ("XPATH", "//button[contains(@class, 'button-main') and contains(text(), 'OK')]", "Main button with OK text"),
                 ("XPATH", "//button[text()='OK']", "OK button text"),
                 ("XPATH", "//button[contains(text(), 'OK')]", "OK button contains text"),
                 ("XPATH", "//input[@value='OK']", "OK input value"),
                 ("XPATH", "//button[@type='submit' and contains(text(), 'OK')]", "OK submit button"),
                 ("CSS", "button.ok-button", "OK button class"),
                 ("CSS", "button.confirm", "Confirm button class"),
-                ("XPATH", "//div[contains(@class, 'popup')]//button[contains(text(), 'OK')]", "OK button in popup"),
+                ("XPATH", "//div[contains(@class, 'ui-dialog')]//button[contains(text(), 'OK')]", "OK button in ui-dialog"),
                 ("XPATH", "//div[contains(@class, 'dialog')]//button[contains(text(), 'OK')]", "OK button in dialog"),
                 ("XPATH", "//div[contains(@class, 'modal')]//button[contains(text(), 'OK')]", "OK button in modal"),
-                # More generic popup button selectors
-                ("XPATH", "//button[contains(@class, 'primary') and contains(text(), 'OK')]", "Primary OK button"),
-                ("XPATH", "//button[contains(@class, 'confirm')]", "Confirm button"),
-                ("XPATH", "//button[contains(@class, 'accept')]", "Accept button"),
             ]
             
             ok_button_found = False
@@ -1032,9 +1072,12 @@ class LocalProductionScraper:
                         ok_button = self.driver.find_element(By.CSS_SELECTOR, selector)
                     elif selector_type == "XPATH":
                         ok_button = self.driver.find_element(By.XPATH, selector)
+                    elif selector_type == "ID":
+                        ok_button = self.driver.find_element(By.ID, selector)
                     
                     if ok_button and ok_button.is_displayed():
                         logger.info(f"✅ Found OK button in popup: {description}")
+                        logger.info(f"   Button text: '{ok_button.text}'")
                         
                         # Click OK button
                         try:
@@ -1054,6 +1097,14 @@ class LocalProductionScraper:
             
             if not ok_button_found:
                 logger.warning("⚠️ Could not find OK button in popup - download may have started anyway")
+                # Save page source for debugging
+                try:
+                    page_source = self.driver.page_source
+                    with open("debug_popup_page.html", "w", encoding="utf-8") as f:
+                        f.write(page_source)
+                    logger.info("💾 Saved page source to debug_popup_page.html for popup analysis")
+                except:
+                    pass
             
             # Wait for download to complete
             logger.info("⏳ Waiting for download to process...")
