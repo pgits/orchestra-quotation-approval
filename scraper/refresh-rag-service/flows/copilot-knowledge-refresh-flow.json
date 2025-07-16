@@ -1,0 +1,244 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Initialize_Agent_ID": {
+        "inputs": {
+          "variables": [
+            {
+              "name": "AgentID",
+              "type": "string",
+              "value": "@{parameters('CopilotStudioAgentId')}"
+            }
+          ]
+        },
+        "runAfter": {},
+        "type": "InitializeVariable"
+      },
+      "Initialize_File_Pattern": {
+        "inputs": {
+          "variables": [
+            {
+              "name": "FilePattern",
+              "type": "string",
+              "value": "ec-synnex-"
+            }
+          ]
+        },
+        "runAfter": {
+          "Initialize_Agent_ID": [
+            "Succeeded"
+          ]
+        },
+        "type": "InitializeVariable"
+      },
+      "List_Existing_Knowledge_Files": {
+        "inputs": {
+          "host": {
+            "connectionName": "shared_commondataservice",
+            "operationId": "ListRecords"
+          },
+          "parameters": {
+            "entityName": "msdyn_copilotcomponents",
+            "$filter": "contains(msdyn_name, '@{variables('FilePattern')}') and _msdyn_parentcopilotcomponentid_value eq '@{variables('AgentID')}'",
+            "$select": "msdyn_copilotcomponentid,msdyn_name,msdyn_componenttype"
+          }
+        },
+        "runAfter": {
+          "Initialize_File_Pattern": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection"
+      },
+      "Condition_Check_Existing_Files": {
+        "actions": {
+          "Apply_to_each_existing_file": {
+            "actions": {
+              "Delete_existing_knowledge_file": {
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_commondataservice",
+                    "operationId": "DeleteRecord"
+                  },
+                  "parameters": {
+                    "entityName": "msdyn_copilotcomponents",
+                    "recordId": "@items('Apply_to_each_existing_file')?['msdyn_copilotcomponentid']"
+                  }
+                },
+                "runAfter": {},
+                "type": "ApiConnection"
+              }
+            },
+            "foreach": "@outputs('List_Existing_Knowledge_Files')?['body/value']",
+            "runAfter": {},
+            "type": "Foreach"
+          }
+        },
+        "else": {
+          "actions": {}
+        },
+        "expression": {
+          "and": [
+            {
+              "greater": [
+                "@length(outputs('List_Existing_Knowledge_Files')?['body/value'])",
+                0
+              ]
+            }
+          ]
+        },
+        "runAfter": {
+          "List_Existing_Knowledge_Files": [
+            "Succeeded"
+          ]
+        },
+        "type": "If"
+      },
+      "Get_File_Content": {
+        "inputs": {
+          "host": {
+            "connectionName": "shared_onedriveforbusiness",
+            "operationId": "GetFileContent"
+          },
+          "parameters": {
+            "id": "@triggerBody()?['FilePath']"
+          }
+        },
+        "runAfter": {
+          "Condition_Check_Existing_Files": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection"
+      },
+      "Create_New_Knowledge_Component": {
+        "inputs": {
+          "host": {
+            "connectionName": "shared_commondataservice",
+            "operationId": "CreateRecord"
+          },
+          "parameters": {
+            "entityName": "msdyn_copilotcomponents",
+            "item": {
+              "msdyn_name": "@triggerBody()?['FileName']",
+              "msdyn_componenttype": 192350002,
+              "msdyn_parentcopilotcomponentid@odata.bind": "/msdyn_copilotcomponents(@{variables('AgentID')})",
+              "msdyn_knowledgesourcetype": 192350000,
+              "msdyn_knowledgesourcesubtype": 192350001,
+              "msdyn_componentstate": 192350000,
+              "msdyn_filecontent": "@{base64(outputs('Get_File_Content')?['body'])}",
+              "msdyn_fileextension": "@{split(triggerBody()?['FileName'], '.')[1]}",
+              "msdyn_filesize": "@{length(outputs('Get_File_Content')?['body'])}"
+            }
+          }
+        },
+        "runAfter": {
+          "Get_File_Content": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection"
+      },
+      "Wait_for_Processing": {
+        "inputs": {
+          "interval": {
+            "count": 30,
+            "unit": "Second"
+          }
+        },
+        "runAfter": {
+          "Create_New_Knowledge_Component": [
+            "Succeeded"
+          ]
+        },
+        "type": "Wait"
+      },
+      "Check_Processing_Status": {
+        "inputs": {
+          "host": {
+            "connectionName": "shared_commondataservice",
+            "operationId": "GetRecord"
+          },
+          "parameters": {
+            "entityName": "msdyn_copilotcomponents",
+            "recordId": "@outputs('Create_New_Knowledge_Component')?['body/msdyn_copilotcomponentid']"
+          }
+        },
+        "runAfter": {
+          "Wait_for_Processing": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection"
+      },
+      "Response_Success": {
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "message": "Knowledge base file updated successfully",
+            "fileName": "@{triggerBody()?['FileName']}",
+            "componentId": "@{outputs('Create_New_Knowledge_Component')?['body/msdyn_copilotcomponentid']}",
+            "status": "completed",
+            "timestamp": "@utcnow()"
+          }
+        },
+        "runAfter": {
+          "Check_Processing_Status": [
+            "Succeeded"
+          ]
+        },
+        "type": "Response"
+      }
+    },
+    "contentVersion": "1.0.0.0",
+    "outputs": {},
+    "parameters": {
+      "CopilotStudioAgentId": {
+        "type": "string",
+        "defaultValue": ""
+      }
+    },
+    "triggers": {
+      "manual": {
+        "inputs": {
+          "schema": {
+            "properties": {
+              "FilePath": {
+                "type": "string",
+                "description": "Path to the file in OneDrive"
+              },
+              "FileName": {
+                "type": "string",
+                "description": "Name of the file to upload"
+              }
+            },
+            "required": [
+              "FilePath",
+              "FileName"
+            ],
+            "type": "object"
+          }
+        },
+        "kind": "Http",
+        "type": "Request"
+      }
+    }
+  },
+  "parameters": {
+    "$connections": {
+      "value": {
+        "shared_commondataservice": {
+          "connectionId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Web/connections/shared_commondataservice",
+          "connectionName": "shared_commondataservice",
+          "id": "/subscriptions/{subscription-id}/providers/Microsoft.Web/locations/{location}/managedApis/commondataservice"
+        },
+        "shared_onedriveforbusiness": {
+          "connectionId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Web/connections/shared_onedriveforbusiness",
+          "connectionName": "shared_onedriveforbusiness",
+          "id": "/subscriptions/{subscription-id}/providers/Microsoft.Web/locations/{location}/managedApis/onedriveforbusiness"
+        }
+      }
+    }
+  }
+}

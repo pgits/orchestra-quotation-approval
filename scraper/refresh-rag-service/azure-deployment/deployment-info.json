@@ -1,0 +1,25 @@
+{
+    "deployment": {
+        "name": "copilot-refresh-manual",
+        "timestamp": "2025-07-15T16:43:00Z",
+        "resource_group": "rg-copilot-refresh",
+        "location": "eastus"
+    },
+    "container_registry": {
+        "name": "copilotrefreshacr597769",
+        "login_server": "copilotrefreshacr597769.azurecr.io"
+    },
+    "managed_identity": {
+        "name": "copilot-refresh-identity",
+        "client_id": "8cb37433-9611-4b2c-95c5-873c7946fc84",
+        "principal_id": "1e30c49a-e648-4b4c-9176-02425d35e902"
+    },
+    "configuration": {
+        "resource_prefix": "copilot-refresh",
+        "sharepoint_tenant": "hexalinks",
+        "sharepoint_site_url": "https://hexalinks.sharepoint.com/sites/QuotationsTeam",
+        "agent_id": "e71b63c6-9653-f011-877a-000d3a593ad6",
+        "environment_id": "33a7afba-68df-4fb5-84ba-abd928569b69",
+        "appinsights_key": "37d88369-a344-4309-8040-e3bd4de4218f"
+    }
+}

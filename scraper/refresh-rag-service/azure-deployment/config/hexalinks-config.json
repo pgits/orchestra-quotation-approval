@@ -1,0 +1,20 @@
+{
+  "sharepoint": {
+    "tenant": "hexalinks",
+    "site_url": "https://hexalinks.sharepoint.com/sites/QuotationsTeam/Shared%20Documents",
+    "library_name": "Documents",
+    "folder_path": "",
+    "shared_link": "https://hexalinks.sharepoint.com/sites/QuotationsTeam/Shared%20Documents/Forms/AllItems.aspx"
+  },
+  "copilot_studio": {
+    "agent_id": "e71b63c6-9653-f011-877a-000d3a593ad6",
+    "environment_id": "Default-33a7afba-68df-4fb5-84ba-abd928569b69",
+    "agent_name": "Nathan's Hardware Buddy v.1"
+  },
+  "file_settings": {
+    "file_pattern": "ec-synnex-",
+    "supported_extensions": [".xls", ".xlsx"],
+    "max_file_size": 536870912,
+    "local_file_path": "~/Downloads/ec-synnex-701601-0708-0927.xls"
+  }
+}

@@ -21,6 +21,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.keys import Keys
+import requests
 
 # Configure logging
 logging.basicConfig(
@@ -224,6 +225,31 @@ class LocalProductionScraper:
                     input("Press Enter after solving the CAPTCHA...")
             except:
                 logger.info("No CAPTCHA required")
+            
+            # Check if verification code is required (for new IP addresses)
+            try:
+                verification_field = self.driver.find_element(By.ID, "verificationCode")
+                if verification_field.is_displayed():
+                    logger.warning("⚠️ Verification code detected! This IP address hasn't been seen before.")
+                    
+                    # Try to get verification code from email service
+                    verification_code = self.get_verification_code_from_email()
+                    
+                    if verification_code:
+                        logger.info("Using verification code from email service...")
+                        verification_field.clear()
+                        verification_field.send_keys(verification_code)
+                        logger.info("✅ Verification code entered from email")
+                    elif hasattr(self, 'verification_code') and self.verification_code:
+                        logger.info("Using provided verification code...")
+                        verification_field.clear()
+                        verification_field.send_keys(self.verification_code)
+                        logger.info("✅ Verification code entered")
+                    else:
+                        logger.info("Please enter the verification code manually in the browser window.")
+                        input("Press Enter after entering the verification code...")
+            except:
+                logger.info("No verification code required")
             
             # Submit login form
             logger.info("Submitting login form...")
@@ -1300,6 +1326,44 @@ class LocalProductionScraper:
         print('\n'.join(report_lines))
         
         logger.info(f"📋 Report generated: {report_file}")
+    
+    def get_verification_code_from_email(self):
+        """Get verification code from email service"""
+        try:
+            # Email service URL - use localhost for local testing, container name for Docker
+            email_service_url = os.getenv('EMAIL_SERVICE_URL', 'http://email-verification-service:5000')
+            
+            logger.info(f"🔍 Requesting verification code from email service: {email_service_url}")
+            
+            # Make request to email service
+            response = requests.get(
+                f"{email_service_url}/verification-code",
+                params={
+                    'sender': 'do_not_reply@tdsynnex.com',
+                    'max_age_minutes': 10
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    verification_code = data.get('verification_code')
+                    logger.info(f"✅ Retrieved verification code from email: {verification_code}")
+                    return verification_code
+                else:
+                    logger.warning(f"⚠️ Email service returned no code: {data.get('message')}")
+                    return None
+            else:
+                logger.warning(f"⚠️ Email service returned status {response.status_code}: {response.text}")
+                return None
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Failed to connect to email service: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error getting verification code from email: {e}")
+            return None
     
     def run_production_scraping(self):
         """Execute a complete production scraping session"""

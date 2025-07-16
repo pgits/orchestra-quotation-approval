@@ -1,0 +1,45 @@
+{
+  "copilotStudio": {
+    "agentName": "Nathan's Hardware Buddy v.1",
+    "agentId": "e71b63c6-9653-f011-877a-000d3a593ad6",
+    "environment": {
+      "name": "",
+      "id": "Default-33a7afba-68df-4fb5-84ba-abd928569b69",
+      "region": ""
+    }
+  },
+  "powerAutomate": {
+    "flowName": "Copilot Knowledge Refresh Flow",
+    "triggerUrl": "",
+    "resourceGroup": "",
+    "subscriptionId": ""
+  },
+  "fileSettings": {
+    "filePattern": "ec-synnex-",
+    "maxFileSize": 536870912,
+    "supportedExtensions": [
+      ".xls",
+      ".xlsx",
+      ".csv",
+      ".pdf",
+      ".docx",
+      ".txt"
+    ],
+    "localFilePath": "~/Downloads/ec-synnex-701601-0708-0927.xls"
+  },
+  "connections": {
+    "dataverse": {
+      "connectionName": "shared_commondataservice",
+      "entityName": "msdyn_copilotcomponents"
+    },
+    "oneDrive": {
+      "connectionName": "shared_onedriveforbusiness",
+      "uploadFolder": "/Knowledge_Base_Files"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "enableAuditTrail": true,
+    "retentionDays": 30
+  }
+}
