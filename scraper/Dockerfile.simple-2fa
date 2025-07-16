@@ -1,0 +1,21 @@
+# Simple 2FA API container for testing
+FROM python:3.11-slim
+
+# Install minimal dependencies
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies for 2FA API only
+RUN pip install flask requests
+
+# Copy only 2FA components
+COPY verification_listener.py /app/
+COPY run_verification_api.py /app/
+COPY .env /app/
+
+WORKDIR /app
+
+# Expose 2FA API port
+EXPOSE 5001
+
+# Simple startup - just run the API
+CMD ["python3", "run_verification_api.py"]

@@ -1,0 +1,63 @@
+# TD SYNNEX scraper container with 2FA support
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    software-properties-common \
+    unzip \
+    curl \
+    xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Chrome
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ChromeDriver
+RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE` \
+    && wget -O /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip \
+    && unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/ \
+    && chmod +x /usr/local/bin/chromedriver \
+    && rm /tmp/chromedriver.zip
+
+# Set environment variables
+ENV CHROME_BIN=/usr/bin/google-chrome-stable
+ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
+ENV PYTHONUNBUFFERED=1
+
+# Install Python dependencies
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Install additional dependencies for 2FA support
+RUN pip install flask requests
+
+# Copy application code
+COPY local_production_scraper.py /app/
+COPY run_container_scraper.py /app/
+COPY .env /app/
+
+# Copy 2FA handler components
+COPY verification_listener.py /app/
+COPY integrated_verification_handler.py /app/
+COPY verification_handler.py /app/
+COPY production_scraper_with_2fa.py /app/
+COPY run_verification_api.py /app/
+COPY start_2fa_api.sh /app/
+COPY container_startup.sh /app/
+
+# Make scripts executable
+RUN chmod +x /app/start_2fa_api.sh /app/container_startup.sh
+
+WORKDIR /app
+
+# Expose ports
+EXPOSE 5001 5002 5003
+
+# Use the new startup script that handles both 2FA API and scraper
+CMD ["./container_startup.sh"]

@@ -15,3 +15,7 @@ lxml>=4.9.0
 
 # Utility dependencies
 python-dotenv>=1.0.0
+
+# 2FA API dependencies
+flask>=2.3.0
+requests>=2.31.0
