@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  mitmproxy:
+    build: .
+    container_name: test-proxy
+    ports:
+      - "8080:8080"  # Proxy server
+      - "8081:8081"  # Web interface
+    volumes:
+      - ./logs:/app/logs
+      - ./certs:/root/.mitmproxy
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - proxy-network
+
+networks:
+  proxy-network:
+    driver: bridge
