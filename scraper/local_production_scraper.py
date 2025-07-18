@@ -313,6 +313,10 @@ class LocalProductionScraper:
         """Apply filters to get Microsoft products with comprehensive debugging"""
         logger.info("🔍 Applying Microsoft product filters...")
         
+        # Initialize Microsoft selection tracking variables
+        microsoft_found = False
+        microsoft_count = 0
+        
         try:
             # First, find and use the manufacturer filter search box
             logger.info("🔍 Looking for manufacturer filter search box...")
@@ -404,8 +408,7 @@ class LocalProductionScraper:
                 logger.info(f"Found {len(manufacturer_checkboxes)} manufacturer checkboxes")
                 
                 # Look for Microsoft checkboxes specifically
-                microsoft_found = False
-                microsoft_count = 0
+                # (Variables already initialized at method level)
                 
                 # First, look for the specific VendNo=19215
                 logger.info("🔍 Looking for Microsoft checkbox with VendNo=19215...")
@@ -671,14 +674,15 @@ class LocalProductionScraper:
             
             # Apply Other Criteria settings
             self.enable_short_description()
-            self.set_file_format_excel()
-            # Skip field delimiter configuration as requested
+            self.set_file_format_cr_mac()
+            self.set_field_delimiter_semicolon()
             
             # Enable "In Stock Only" checkbox
             self.enable_in_stock_only()
             
-            # Try to trigger search/filter application
-            self.trigger_search()
+            # Skip search trigger to avoid 'Please input valid search criteria' popup
+            logger.info("⚠️ Skipping search trigger to prevent popup - filters should apply automatically")
+            # self.trigger_search()  # DISABLED - causes popup
             
             # Try to download the results after applying filters
             logger.info("📥 Attempting to download filtered results...")
@@ -749,21 +753,21 @@ class LocalProductionScraper:
             logger.error(f"❌ Failed to enable Short Description: {str(e)}")
             return False
     
-    def set_file_format_excel(self):
-        """Set File Format to Microsoft Excel"""
-        logger.info("📄 Setting File Format to Microsoft Excel...")
+    def set_file_format_cr_mac(self):
+        """Set File Format to CR(Mac)"""
+        logger.info("📄 Setting File Format to CR(Mac)...")
         
         try:
-            # Based on HTML analysis: <input type="radio" name="fileFormat" value="xls" class="ui-radio">
-            excel_selectors = [
-                ("CSS", "input[name='fileFormat'][value='xls']", "Microsoft Excel radio button (exact)"),
-                ("XPATH", "//input[@name='fileFormat' and @value='xls']", "Microsoft Excel XPath"),
-                ("XPATH", "//span[contains(text(), 'Microsoft excel')]/../input", "Microsoft Excel by label text"),
-                ("XPATH", "//label[contains(., 'Microsoft excel')]//input", "Microsoft Excel in label"),
-                ("ID", "downloadExcel", "Download Excel ID"),
+            # Based on HTML analysis: <input type="radio" name="fileFormat" value="cr" class="ui-radio">
+            cr_mac_selectors = [
+                ("CSS", "input[name='fileFormat'][value='cr']", "CR(Mac) radio button (exact)"),
+                ("XPATH", "//input[@name='fileFormat' and @value='cr']", "CR(Mac) XPath"),
+                ("XPATH", "//span[contains(text(), 'CR(Mac)')]/../input", "CR(Mac) by label text"),
+                ("XPATH", "//label[contains(., 'CR(Mac)')]//input", "CR(Mac) in label"),
+                ("CSS", "input[type='radio'][value='cr']", "CR radio button by value"),
             ]
             
-            for selector_type, selector, description in excel_selectors:
+            for selector_type, selector, description in cr_mac_selectors:
                 try:
                     if selector_type == "CSS":
                         element = self.driver.find_element(By.CSS_SELECTOR, selector)
@@ -778,32 +782,32 @@ class LocalProductionScraper:
                             try:
                                 # Try direct click first
                                 element.click()
-                                logger.info(f"✅ Selected Microsoft Excel format: {description}")
+                                logger.info(f"✅ Selected CR(Mac) format: {description}")
                             except:
                                 try:
                                     # If direct click fails, try clicking the parent label
                                     parent_label = element.find_element(By.XPATH, "./ancestor::label")
                                     parent_label.click()
-                                    logger.info(f"✅ Selected Microsoft Excel via label: {description}")
+                                    logger.info(f"✅ Selected CR(Mac) via label: {description}")
                                 except:
                                     # Last resort: JavaScript click
                                     self.driver.execute_script("arguments[0].click();", element)
-                                    logger.info(f"✅ Selected Microsoft Excel via JS: {description}")
+                                    logger.info(f"✅ Selected CR(Mac) via JS: {description}")
                             time.sleep(1)
                             return True
                         else:
-                            logger.info(f"✅ Microsoft Excel format already selected: {description}")
+                            logger.info(f"✅ CR(Mac) format already selected: {description}")
                             return True
                             
                 except Exception as e:
-                    logger.debug(f"Microsoft Excel selector failed ({description}): {e}")
+                    logger.debug(f"CR(Mac) selector failed ({description}): {e}")
                     continue
             
-            logger.warning("⚠️ Could not find Microsoft Excel file format option")
+            logger.warning("⚠️ Could not find CR(Mac) file format option")
             return False
             
         except Exception as e:
-            logger.error(f"❌ Failed to set Microsoft Excel format: {str(e)}")
+            logger.error(f"❌ Failed to set CR(Mac) format: {str(e)}")
             return False
     
     def set_field_delimiter_semicolon(self):
