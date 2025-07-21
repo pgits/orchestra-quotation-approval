@@ -126,56 +126,144 @@ class OutlookClient:
         logger.info(f"✅ Retrieved {len(emails)} recent emails")
         return emails
     
-    def get_latest_verification_code(self, sender: str = 'do_not_reply@tdsynnex.com', max_age_minutes: int = 10) -> Optional[str]:
+    def get_latest_verification_code(self, sender: str = 'do_not_reply@tdsynnex.com', max_age_minutes: int = 10, ignore_time_window: bool = False, return_verification_id: bool = False, verbose_debug: bool = False) -> Optional[str]:
         """
         Get the latest verification code from emails from specified sender
         
         Args:
             sender: Email address to filter by
-            max_age_minutes: Maximum age of email to consider
+            max_age_minutes: Maximum age of email to consider (ignored if ignore_time_window=True)
+            ignore_time_window: If True, search all emails regardless of age
+            return_verification_id: If True, return verificationId instead of verification code
+            verbose_debug: If True, log the full email content before extraction
             
         Returns:
-            Verification code string if found, None otherwise
+            Verification code string or verificationId if found, None otherwise
         """
-        logger.info(f"🔍 Searching for verification code from {sender} (max age: {max_age_minutes} minutes)")
-        
-        # Calculate time filter
-        cutoff_time = datetime.now() - timedelta(minutes=max_age_minutes)
-        cutoff_time_str = cutoff_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        if ignore_time_window:
+            logger.info(f"🔍 Searching for {'verificationId' if return_verification_id else 'verification code'} from {sender} (ignoring time window)")
+        else:
+            logger.info(f"🔍 Searching for {'verificationId' if return_verification_id else 'verification code'} from {sender} (max age: {max_age_minutes} minutes)")
         
         # Search for emails from the specified sender
-        params = {
-            '$filter': f"from/emailAddress/address eq '{sender}' and receivedDateTime ge {cutoff_time_str}",
-            '$orderby': 'receivedDateTime desc',
-            '$top': 10,
-            '$select': 'subject,body,receivedDateTime,bodyPreview'
-        }
+        if ignore_time_window:
+            # When ignoring time window, get recent emails and filter client-side
+            params = {
+                '$orderby': 'receivedDateTime desc',
+                '$top': 100,  # Get more emails to filter from
+                '$select': 'subject,body,receivedDateTime,bodyPreview,sender'
+            }
+        else:
+            # Calculate time filter
+            cutoff_time = datetime.now() - timedelta(minutes=max_age_minutes)
+            cutoff_time_str = cutoff_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            
+            params = {
+                '$filter': f"from/emailAddress/address eq '{sender}' and receivedDateTime ge {cutoff_time_str}",
+                '$orderby': 'receivedDateTime desc',
+                '$top': 10,
+                '$select': 'subject,body,receivedDateTime,bodyPreview'
+            }
         
         try:
             result = self._make_graph_request(f"users/{self.user_email}/messages", params=params)
             
-            messages = result.get('value', [])
+            all_messages = result.get('value', [])
+            
+            if ignore_time_window:
+                # Filter messages by sender client-side
+                messages = []
+                for msg in all_messages:
+                    msg_sender = msg.get('sender', {}).get('emailAddress', {}).get('address', '')
+                    if msg_sender.lower() == sender.lower():
+                        messages.append(msg)
+                        if len(messages) >= 50:  # Limit results
+                            break
+            else:
+                messages = all_messages
+            
             logger.info(f"📧 Found {len(messages)} emails from {sender}")
             
             for message in messages:
-                verification_code = self._extract_verification_code(message)
-                if verification_code:
-                    logger.info(f"✅ Found verification code: {verification_code}")
-                    return verification_code
+                # First check if this is actually a verification email
+                if not self._is_verification_email(message):
+                    if verbose_debug:
+                        logger.info("⏭️  Skipping non-verification email")
+                    continue
+                
+                if return_verification_id:
+                    verification_id = self._extract_verification_id(message, verbose_debug)
+                    if verification_id:
+                        logger.info(f"✅ Found verificationId: {verification_id}")
+                        return verification_id
+                else:
+                    verification_code = self._extract_verification_code(message, verbose_debug)
+                    if verification_code:
+                        logger.info(f"✅ Found verification code: {verification_code}")
+                        return verification_code
             
-            logger.warning(f"⚠️ No verification code found in {len(messages)} emails from {sender}")
+            search_type = "verificationId" if return_verification_id else "verification code"
+            logger.warning(f"⚠️ No {search_type} found in {len(messages)} emails from {sender}")
             return None
             
         except Exception as e:
-            logger.error(f"❌ Error searching for verification code: {e}")
+            logger.error(f"❌ Error searching for verification code/ID: {e}")
             return None
     
-    def _extract_verification_code(self, message: Dict) -> Optional[str]:
+    def _is_verification_email(self, message: Dict) -> bool:
+        """
+        Check if an email is actually a verification/2FA email
+        
+        Args:
+            message: Email message from Graph API
+            
+        Returns:
+            True if this appears to be a verification email, False otherwise
+        """
+        # Get email content
+        subject = message.get('subject', '')
+        body_preview = message.get('bodyPreview', '')
+        
+        # Get full body content if available
+        body_content = ''
+        if 'body' in message:
+            body_content = message['body'].get('content', '')
+        
+        # Combine all text content for searching
+        full_text = f"{subject} {body_preview} {body_content}".lower()
+        
+        # Look for specific verification email patterns
+        verification_patterns = [
+            'enter this code into the verification field',
+            'verification code',
+            'verification field',
+            'enter this code',
+            'authentication code',
+            'security code',
+            'login verification',
+            'two-factor authentication',
+            '2fa code',
+            'expires at',
+            'new login location',
+            'login attempt'
+        ]
+        
+        # Check if any verification patterns are found
+        for pattern in verification_patterns:
+            if pattern in full_text:
+                logger.debug(f"✅ Identified as verification email (matched: '{pattern}')")
+                return True
+        
+        logger.debug("❌ Not identified as verification email")
+        return False
+    
+    def _extract_verification_code(self, message: Dict, verbose_debug: bool = False) -> Optional[str]:
         """
         Extract verification code from email message
         
         Args:
             message: Email message from Graph API
+            verbose_debug: If True, log full email content
             
         Returns:
             Verification code string if found, None otherwise
@@ -192,18 +280,36 @@ class OutlookClient:
         # Combine all text content
         full_text = f"{subject} {body_preview} {body_content}"
         
-        logger.debug(f"📧 Email subject: {subject}")
-        logger.debug(f"📧 Email preview: {body_preview[:100]}...")
+        if verbose_debug:
+            logger.info("=" * 80)
+            logger.info("📧 VERBOSE DEBUG: FULL EMAIL CONTENT")
+            logger.info("=" * 80)
+            logger.info(f"📧 Subject: {subject}")
+            logger.info(f"📧 Received Time: {message.get('receivedDateTime', 'Unknown')}")
+            logger.info(f"📧 Body Preview: {body_preview}")
+            logger.info("-" * 40)
+            logger.info("📧 Full Body Content:")
+            logger.info(body_content[:2000] if body_content else "No body content")
+            if len(body_content) > 2000:
+                logger.info(f"... (truncated, full length: {len(body_content)} chars)")
+            logger.info("-" * 40)
+            logger.info(f"📧 Combined Search Text Length: {len(full_text)} chars")
+            logger.info("=" * 80)
+        else:
+            logger.debug(f"📧 Email subject: {subject}")
+            logger.debug(f"📧 Email preview: {body_preview[:100]}...")
         
-        # Common patterns for verification codes
+        # Specific patterns for TD SYNNEX verification codes
         patterns = [
+            r'PM PDT</span>:<br><br><span>(\d{6})</span>',  # Most specific - after PM PDT: with 6 digits
+            r'expires at[^:]*:\s*<br><br><span>(\d{6})</span>',  # After "expires at" with 6 digits
+            r'verification field[^:]*:\s*<br><br><span>(\d{6})</span>',  # After verification field with 6 digits
+            r'<br><br><span>(\d{6})</span>(?!\d)',  # 6-digit code in span after br tags, not followed by more digits
+            r':\s*<br><br><span>(\d{4,8})</span>',  # After colon, br tags, and span (general)
+            r'(\d{6})(?!</span>\s*</td>.*(?:19|20)\d{2})',  # 6-digit not followed by year in same cell
             r'verification code[:\s]*(\d{4,8})',  # "verification code: 123456"
-            r'verification code is[:\s]*(\d{4,8})',  # "verification code is 123456"
-            r'code[:\s]*(\d{4,8})',  # "code: 123456"
+            r'authentication code[:\s]*(\d{4,8})',  # "authentication code: 123456"
             r'security code[:\s]*(\d{4,8})',  # "security code: 123456"
-            r'access code[:\s]*(\d{4,8})',  # "access code: 123456"
-            r'your code[:\s]*(\d{4,8})',  # "your code: 123456"
-            r'(\d{4,8})',  # Any 4-8 digit number (fallback)
         ]
         
         for pattern in patterns:
@@ -216,6 +322,70 @@ class OutlookClient:
                     return code
         
         logger.debug(f"⚠️ No verification code found in email: {subject}")
+        return None
+    
+    def _extract_verification_id(self, message: Dict, verbose_debug: bool = False) -> Optional[str]:
+        """
+        Extract verificationId from email message body
+        
+        Args:
+            message: Email message from Graph API
+            verbose_debug: If True, log full email content
+            
+        Returns:
+            VerificationId string if found, None otherwise
+        """
+        # Get email content
+        subject = message.get('subject', '')
+        body_preview = message.get('bodyPreview', '')
+        
+        # Get full body content if available
+        body_content = ''
+        if 'body' in message:
+            body_content = message['body'].get('content', '')
+        
+        # Combine all text content
+        full_text = f"{subject} {body_preview} {body_content}"
+        
+        if verbose_debug:
+            logger.info("=" * 80)
+            logger.info("📧 VERBOSE DEBUG: FULL EMAIL CONTENT (VerificationId Search)")
+            logger.info("=" * 80)
+            logger.info(f"📧 Subject: {subject}")
+            logger.info(f"📧 Received Time: {message.get('receivedDateTime', 'Unknown')}")
+            logger.info(f"📧 Body Preview: {body_preview}")
+            logger.info("-" * 40)
+            logger.info("📧 Full Body Content:")
+            logger.info(body_content[:2000] if body_content else "No body content")
+            if len(body_content) > 2000:
+                logger.info(f"... (truncated, full length: {len(body_content)} chars)")
+            logger.info("-" * 40)
+            logger.info(f"📧 Combined Search Text Length: {len(full_text)} chars")
+            logger.info("=" * 80)
+        else:
+            logger.debug(f"📧 Email subject: {subject}")
+            logger.debug(f"📧 Email preview: {body_preview[:100]}...")
+        
+        # Common patterns for verificationId
+        patterns = [
+            r'verificationId[:\s]*([a-zA-Z0-9\-_]+)',  # "verificationId: abc123-def456"
+            r'verification\s*id[:\s]*([a-zA-Z0-9\-_]+)',  # "verification id: abc123-def456"
+            r'verification\s*ID[:\s]*([a-zA-Z0-9\-_]+)',  # "verification ID: abc123-def456"
+            r'id[:\s]*([a-zA-Z0-9\-_]{8,})',  # "id: abc123def456" (at least 8 chars)
+            r'ID[:\s]*([a-zA-Z0-9\-_]{8,})',  # "ID: abc123def456"
+            r'([a-zA-Z0-9\-_]{16,})',  # Any alphanumeric string with dashes/underscores, at least 16 chars
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                verification_id = match.group(1)
+                # Validate ID length and format (should be reasonably long and not just numbers)
+                if len(verification_id) >= 8 and not verification_id.isdigit():
+                    logger.info(f"✅ Extracted verificationId using pattern: {pattern}")
+                    return verification_id
+        
+        logger.debug(f"⚠️ No verificationId found in email: {subject}")
         return None
     
     def get_emails_by_subject(self, subject_contains: str, max_age_minutes: int = 10) -> List[Dict]:

@@ -76,11 +76,14 @@ def health_check():
 @app.route('/verification-code', methods=['GET'])
 def get_verification_code():
     """
-    Get the latest verification code from TD SYNNEX emails
+    Get the latest verification code or verificationId from TD SYNNEX emails
     
     Query parameters:
     - max_age_minutes: Maximum age of email to consider (default: 10)
     - sender: Email sender to filter by (default: do_not_reply@tdsynnex.com)
+    - ignore_time_window: Set to 'true' to ignore time window and search all emails (default: false)
+    - return_verification_id: Set to 'true' to return verificationId instead of verification code (default: false)
+    - verbose_debug: Set to 'true' to log full email content before extraction (default: false)
     """
     try:
         if outlook_client is None:
@@ -89,33 +92,56 @@ def get_verification_code():
         # Get query parameters
         max_age_minutes = int(request.args.get('max_age_minutes', 10))
         sender = request.args.get('sender', 'do_not_reply@tdsynnex.com')
+        ignore_time_window = request.args.get('ignore_time_window', 'false').lower() == 'true'
+        return_verification_id = request.args.get('return_verification_id', 'false').lower() == 'true'
+        verbose_debug = request.args.get('verbose_debug', 'false').lower() == 'true'
         
-        logger.info(f"🔍 Searching for verification code from {sender} (max age: {max_age_minutes} minutes)")
+        search_type = "verificationId" if return_verification_id else "verification code"
         
-        # Get verification code from email
-        verification_code = outlook_client.get_latest_verification_code(
+        if ignore_time_window:
+            logger.info(f"🔍 Searching for {search_type} from {sender} (ignoring time window)")
+        else:
+            logger.info(f"🔍 Searching for {search_type} from {sender} (max age: {max_age_minutes} minutes)")
+        
+        # Get verification code or ID from email
+        result = outlook_client.get_latest_verification_code(
             sender=sender,
-            max_age_minutes=max_age_minutes
+            max_age_minutes=max_age_minutes,
+            ignore_time_window=ignore_time_window,
+            return_verification_id=return_verification_id,
+            verbose_debug=verbose_debug
         )
         
-        if verification_code:
-            logger.info(f"✅ Found verification code: {verification_code}")
-            return jsonify({
+        if result:
+            logger.info(f"✅ Found {search_type}: {result}")
+            response_data = {
                 'success': True,
-                'verification_code': verification_code,
                 'timestamp': datetime.now().isoformat(),
-                'sender': sender
-            }), 200
+                'sender': sender,
+                'ignore_time_window': ignore_time_window,
+                'return_verification_id': return_verification_id
+            }
+            
+            if return_verification_id:
+                response_data['verification_id'] = result
+            else:
+                response_data['verification_code'] = result
+            
+            return jsonify(response_data), 200
         else:
-            logger.warning(f"⚠️ No verification code found from {sender}")
+            message = f'No {search_type} found from {sender}'
+            if not ignore_time_window:
+                message += f' in the last {max_age_minutes} minutes'
+            
+            logger.warning(f"⚠️ {message}")
             return jsonify({
                 'success': False,
-                'message': f'No verification code found from {sender} in the last {max_age_minutes} minutes',
+                'message': message,
                 'timestamp': datetime.now().isoformat()
             }), 404
             
     except Exception as e:
-        logger.error(f"❌ Error getting verification code: {e}")
+        logger.error(f"❌ Error getting {search_type}: {e}")
         return jsonify({
             'success': False,
             'error': str(e),

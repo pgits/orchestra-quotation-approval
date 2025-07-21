@@ -61,11 +61,19 @@ Once running, the service provides these REST endpoints:
 
 - `sender` (optional): Email address to filter by (default: `do_not_reply@tdsynnex.com`)
 - `max_age_minutes` (optional): Maximum age of email to consider (default: `10`)
+- `ignore_time_window` (optional): Set to `true` to ignore time window and search all emails (default: `false`)
+- `return_verification_id` (optional): Set to `true` to return verificationId instead of verification code (default: `false`)
 
-Example:
+Examples:
 ```bash
 # Get code from specific sender within last 5 minutes
 curl 'http://localhost:5000/verification-code?sender=noreply@example.com&max_age_minutes=5'
+
+# Get the most recent verification code ignoring time window
+curl 'http://localhost:5000/verification-code?sender=do_not_reply@tdsynnex.com&ignore_time_window=true'
+
+# Get the most recent verificationId ignoring time window  
+curl 'http://localhost:5000/verification-code?sender=do_not_reply@tdsynnex.com&ignore_time_window=true&return_verification_id=true'
 ```
 
 ### Response Examples
@@ -86,11 +94,25 @@ curl 'http://localhost:5000/verification-code?sender=noreply@example.com&max_age
   "success": true,
   "verification_code": "123456",
   "timestamp": "2025-07-21T14:32:00Z",
-  "sender": "do_not_reply@tdsynnex.com"
+  "sender": "do_not_reply@tdsynnex.com",
+  "ignore_time_window": false,
+  "return_verification_id": false
 }
 ```
 
-**Verification Code Response (Not Found):**
+**VerificationId Response (Success):**
+```json
+{
+  "success": true,
+  "verification_id": "XR0b25fc2VlX3ByaWNpbmdfX18xMA",
+  "timestamp": "2025-07-21T14:49:29Z",
+  "sender": "do_not_reply@tdsynnex.com",
+  "ignore_time_window": true,
+  "return_verification_id": true
+}
+```
+
+**Response (Not Found):**
 ```json
 {
   "success": false,
