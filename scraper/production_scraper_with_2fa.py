@@ -34,6 +34,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Check for undetected Chrome availability
+try:
+    import undetected_chromedriver as uc
+    UNDETECTED_CHROME_AVAILABLE = True
+    logger.info("✅ Undetected Chrome available for fallback")
+except ImportError:
+    UNDETECTED_CHROME_AVAILABLE = False
+    logger.warning("⚠️ Undetected Chrome not available")
+
 class ProductionScraperWith2FA:
     """Production scraper with integrated 2FA support"""
     
@@ -287,112 +296,49 @@ class ProductionScraperWith2FA:
         else:
             logger.info("🖥️ Running in headed mode for debugging")
         
-        # Download preferences
-        prefs = {
-            "download.default_directory": download_dir,
-            "download.prompt_for_download": False,
-            "download.directory_upgrade": True,
-            "safebrowsing.enabled": True,
-            "profile.default_content_setting_values.automatic_downloads": 1,
-            "profile.content_settings.exceptions.automatic_downloads.*.setting": 1
-        }
-        chrome_options.add_experimental_option("prefs", prefs)
-        
-        # Enhanced stealth options for better anti-detection
+        # Simple, stable Chrome configuration (based on working local_production_scraper)
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-        chrome_options.add_argument('--disable-web-security')
-        chrome_options.add_argument('--disable-features=VizDisplayCompositor')
-        chrome_options.add_argument('--remote-debugging-port=9222')
-        chrome_options.add_argument('--user-data-dir=/tmp/chrome_user_data')
-        
-        # Enhanced anti-detection measures
-        chrome_options.add_argument('--disable-extensions')
-        chrome_options.add_argument('--disable-plugins')
-        chrome_options.add_argument('--disable-images')
-        chrome_options.add_argument('--disable-default-apps')
-        chrome_options.add_argument('--disable-sync')
-        chrome_options.add_argument('--disable-background-timer-throttling')
-        chrome_options.add_argument('--disable-renderer-backgrounding')
-        chrome_options.add_argument('--disable-backgrounding-occluded-windows')
-        chrome_options.add_argument('--disable-client-side-phishing-detection')
-        chrome_options.add_argument('--disable-hang-monitor')
-        chrome_options.add_argument('--disable-prompt-on-repost')
-        chrome_options.add_argument('--disable-domain-reliability')
-        chrome_options.add_argument('--disable-component-extensions-with-background-pages')
-        chrome_options.add_argument('--no-default-browser-check')
-        chrome_options.add_argument('--no-first-run')
-        chrome_options.add_argument('--disable-logging')
-        chrome_options.add_argument('--disable-log-file')
-        chrome_options.add_argument('--silent')
-        chrome_options.add_argument('--disable-background-networking')
-        
-        # VWO bypass - disable content scripts and A/B testing
-        chrome_options.add_argument('--disable-features=VizDisplayCompositor')
-        chrome_options.add_argument('--disable-features=TranslateUI')
-        chrome_options.add_argument('--disable-ipc-flooding-protection')
-        
-        # Block VWO and analytics scripts
-        chrome_options.add_argument('--disable-features=BlockInsecurePrivateNetworkRequests')
-        chrome_options.add_argument('--disable-features=OptimizationGuideModelDownloading')
-        chrome_options.add_argument('--disable-component-update')
-        chrome_options.add_argument('--disable-features=WebAssembly')
-        
-        # Add VWO-specific blocking
-        chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])
-        chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        chrome_options.add_experimental_option('excludeSwitches', ['enable-blink-features'])
-        
-        # Block VWO domains
-        chrome_options.add_argument('--host-resolver-rules=MAP dev.visualwebsiteoptimizer.com 127.0.0.1')
-        
-        # User agent and fingerprinting
-        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36')
-        
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         
-        # Add proxy configuration if enabled
-        proxy_host = os.getenv('PROXY_HOST')
-        proxy_port = os.getenv('PROXY_PORT')
-        if proxy_host and proxy_port:
-            proxy_url = f"{proxy_host}:{proxy_port}"
-            chrome_options.add_argument(f'--proxy-server=http://{proxy_url}')
-            # Add SSL/TLS bypass for mitmproxy
-            chrome_options.add_argument('--ignore-certificate-errors')
-            chrome_options.add_argument('--ignore-ssl-errors')
-            chrome_options.add_argument('--ignore-certificate-errors-spki-list')
-            chrome_options.add_argument('--ignore-urlfetcher-cert-requests')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--allow-running-insecure-content')
-            logger.info(f"🔗 Proxy configured: {proxy_url}")
-        else:
-            logger.info("🔗 No proxy configured")
+        # Configure download settings (simplified)
+        prefs = {
+            "download.default_directory": download_dir,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": True
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
         
-        # Initialize driver
+        # Simple Chrome initialization (based on working local_production_scraper)
         try:
-            # Try to use system Chrome on macOS
-            if os.path.exists('/Applications/Google Chrome.app'):
-                chrome_options.binary_location = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-                
-            # Use Selenium Manager for automatic driver management (works with container environments)
-            self.driver = webdriver.Chrome(options=chrome_options)
-            logger.info("Using Selenium Manager for automatic ChromeDriver management")
+            # Use webdriver-manager for automatic driver management (but fallback if not available)
+            try:
+                from webdriver_manager.chrome import ChromeDriverManager
+                from selenium.webdriver.chrome.service import Service
+                service = Service(ChromeDriverManager().install())
+                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                logger.info("✅ Using webdriver-manager for ChromeDriver")
+            except Exception as wdm_error:
+                logger.warning(f"Webdriver-manager failed: {wdm_error}, using Selenium Manager")
+                self.driver = webdriver.Chrome(options=chrome_options)
+                logger.info("✅ Using Selenium Manager for ChromeDriver")
             
-            # Execute script to prevent detection
+            # Simple anti-detection script
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            
-            # Pre-emptively disable VWO script
-            self.driver.execute_script("window.__vwo_disable__ = true;")
-            
-            self.wait = WebDriverWait(self.driver, 30)
+            self.wait = WebDriverWait(self.driver, 20)
             logger.info("✅ Chrome browser initialized successfully")
+            logger.info(f"📁 Downloads will be saved to: {download_dir}")
+            return True
             
         except Exception as e:
             logger.error(f"❌ Failed to initialize Chrome browser: {e}")
+            raise
     
     def bypass_vwo_script(self):
         """Inject JavaScript to bypass VWO script hiding"""
