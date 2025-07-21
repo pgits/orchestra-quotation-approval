@@ -63,6 +63,10 @@ Once running, the service provides these REST endpoints:
 - `max_age_minutes` (optional): Maximum age of email to consider (default: `10`)
 - `ignore_time_window` (optional): Set to `true` to ignore time window and search all emails (default: `false`)
 - `return_verification_id` (optional): Set to `true` to return verificationId instead of verification code (default: `false`)
+- `verbose_debug` (optional): Set to `true` to log full email content for debugging (default: `false`)
+- `automatic_submit` (optional): Set to `true` to automatically POST verification code to target URL (default: `false`)
+- `target_url` (optional): URL to POST verification code to (default: `http://td-synnex-scraper-enhanced:5001/2fa-challenge`)
+- `post_timeout` (optional): Timeout for POST request in seconds (default: `10`)
 
 Examples:
 ```bash
@@ -74,6 +78,15 @@ curl 'http://localhost:5000/verification-code?sender=do_not_reply@tdsynnex.com&i
 
 # Get the most recent verificationId ignoring time window  
 curl 'http://localhost:5000/verification-code?sender=do_not_reply@tdsynnex.com&ignore_time_window=true&return_verification_id=true'
+
+# Get verification code and automatically submit to scraper service
+curl 'http://localhost:5000/verification-code?sender=do_not_reply@tdsynnex.com&ignore_time_window=true&automatic_submit=true'
+
+# Get verification code and submit to custom target URL
+curl 'http://localhost:5000/verification-code?sender=do_not_reply@tdsynnex.com&ignore_time_window=true&automatic_submit=true&target_url=http://localhost:5001/2fa-challenge'
+
+# Full example with all parameters
+curl 'http://localhost:5000/verification-code?sender=do_not_reply@tdsynnex.com&ignore_time_window=true&automatic_submit=true&target_url=http://td-synnex-scraper-enhanced:5001/2fa-challenge&post_timeout=15&verbose_debug=true'
 ```
 
 ### Response Examples
@@ -109,6 +122,37 @@ curl 'http://localhost:5000/verification-code?sender=do_not_reply@tdsynnex.com&i
   "sender": "do_not_reply@tdsynnex.com",
   "ignore_time_window": true,
   "return_verification_id": true
+}
+```
+
+**Automatic Submission Response (Success):**
+```json
+{
+  "success": true,
+  "verification_code": "537257",
+  "timestamp": "2025-07-21T15:30:00Z",
+  "sender": "do_not_reply@tdsynnex.com",
+  "ignore_time_window": true,
+  "return_verification_id": false,
+  "automatic_submit": true,
+  "post_result": {
+    "success": true,
+    "status_code": 200,
+    "response_body": {
+      "success": true,
+      "message": "Verification code received successfully",
+      "verificationId": "537257"
+    },
+    "url": "http://td-synnex-scraper-enhanced:5001/2fa-challenge",
+    "duration_ms": 145,
+    "headers_sent": {
+      "Content-Type": "application/json",
+      "User-Agent": "TD-SYNNEX-Email-Verification-Service/1.0"
+    },
+    "payload_sent": {
+      "verificationId": "537257"
+    }
+  }
 }
 ```
 

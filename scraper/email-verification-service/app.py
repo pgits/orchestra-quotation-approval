@@ -84,6 +84,9 @@ def get_verification_code():
     - ignore_time_window: Set to 'true' to ignore time window and search all emails (default: false)
     - return_verification_id: Set to 'true' to return verificationId instead of verification code (default: false)
     - verbose_debug: Set to 'true' to log full email content before extraction (default: false)
+    - automatic_submit: Set to 'true' to automatically POST verification code to target URL (default: false)
+    - target_url: URL to POST verification code to (required if automatic_submit=true, default: http://td-synnex-scraper-enhanced:5001/2fa-challenge)
+    - post_timeout: Timeout for POST request in seconds (default: 10)
     """
     try:
         if outlook_client is None:
@@ -95,10 +98,23 @@ def get_verification_code():
         ignore_time_window = request.args.get('ignore_time_window', 'false').lower() == 'true'
         return_verification_id = request.args.get('return_verification_id', 'false').lower() == 'true'
         verbose_debug = request.args.get('verbose_debug', 'false').lower() == 'true'
+        automatic_submit = request.args.get('automatic_submit', 'false').lower() == 'true'
+        target_url = request.args.get('target_url', 'http://td-synnex-scraper-enhanced:5001/2fa-challenge')
+        post_timeout = int(request.args.get('post_timeout', 10))
+        
+        # Validate automatic_submit parameters
+        if automatic_submit and not target_url:
+            return jsonify({
+                'success': False,
+                'error': 'target_url is required when automatic_submit=true',
+                'timestamp': datetime.now().isoformat()
+            }), 400
         
         search_type = "verificationId" if return_verification_id else "verification code"
         
-        if ignore_time_window:
+        if automatic_submit:
+            logger.info(f"🔍 Searching for {search_type} with automatic submission to {target_url}")
+        elif ignore_time_window:
             logger.info(f"🔍 Searching for {search_type} from {sender} (ignoring time window)")
         else:
             logger.info(f"🔍 Searching for {search_type} from {sender} (max age: {max_age_minutes} minutes)")
@@ -119,13 +135,25 @@ def get_verification_code():
                 'timestamp': datetime.now().isoformat(),
                 'sender': sender,
                 'ignore_time_window': ignore_time_window,
-                'return_verification_id': return_verification_id
+                'return_verification_id': return_verification_id,
+                'automatic_submit': automatic_submit
             }
             
             if return_verification_id:
                 response_data['verification_id'] = result
             else:
                 response_data['verification_code'] = result
+            
+            # Handle automatic submission if requested
+            if automatic_submit:
+                logger.info(f"🚀 Starting automatic submission of verification code")
+                post_result = outlook_client.post_verification_code(result, target_url, post_timeout)
+                response_data['post_result'] = post_result
+                
+                if post_result.get('success'):
+                    logger.info(f"✅ Automatic submission successful")
+                else:
+                    logger.error(f"❌ Automatic submission failed: {post_result.get('error', 'Unknown error')}")
             
             return jsonify(response_data), 200
         else:
@@ -141,6 +169,7 @@ def get_verification_code():
             }), 404
             
     except Exception as e:
+        search_type = "verificationId" if request.args.get('return_verification_id', 'false').lower() == 'true' else "verification code"
         logger.error(f"❌ Error getting {search_type}: {e}")
         return jsonify({
             'success': False,

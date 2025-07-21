@@ -388,6 +388,96 @@ class OutlookClient:
         logger.debug(f"⚠️ No verificationId found in email: {subject}")
         return None
     
+    def post_verification_code(self, verification_code: str, target_url: str, timeout: int = 10) -> Dict:
+        """
+        POST verification code to target URL in the expected JSON format
+        
+        Args:
+            verification_code: The verification code to submit
+            target_url: URL to POST the verification code to
+            timeout: Request timeout in seconds (default: 10)
+            
+        Returns:
+            Dictionary with POST request results including status, response, and timing
+        """
+        import time
+        
+        logger.info(f"🚀 Posting verification code to {target_url}")
+        
+        # Prepare JSON payload - always use "verificationId" regardless of source
+        payload = {"verificationId": verification_code}
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'TD-SYNNEX-Email-Verification-Service/1.0'
+        }
+        
+        start_time = time.time()
+        
+        try:
+            response = requests.post(
+                target_url,
+                json=payload,
+                headers=headers,
+                timeout=timeout
+            )
+            
+            duration_ms = int((time.time() - start_time) * 1000)
+            
+            # Try to parse response as JSON, fallback to text
+            try:
+                response_body = response.json()
+            except:
+                response_body = response.text
+            
+            result = {
+                'success': True,
+                'status_code': response.status_code,
+                'response_body': response_body,
+                'url': target_url,
+                'duration_ms': duration_ms,
+                'headers_sent': headers,
+                'payload_sent': payload
+            }
+            
+            if response.status_code >= 200 and response.status_code < 300:
+                logger.info(f"✅ Successfully posted verification code - Status: {response.status_code}, Duration: {duration_ms}ms")
+            else:
+                logger.warning(f"⚠️ POST request returned non-success status: {response.status_code}")
+                result['success'] = False
+            
+            return result
+            
+        except requests.exceptions.Timeout:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"❌ POST request timed out after {timeout} seconds")
+            return {
+                'success': False,
+                'error': 'Request timeout',
+                'url': target_url,
+                'duration_ms': duration_ms,
+                'timeout': timeout
+            }
+            
+        except requests.exceptions.ConnectionError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"❌ Connection error posting verification code: {e}")
+            return {
+                'success': False,
+                'error': f'Connection error: {str(e)}',
+                'url': target_url,
+                'duration_ms': duration_ms
+            }
+            
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"❌ Unexpected error posting verification code: {e}")
+            return {
+                'success': False,
+                'error': f'Unexpected error: {str(e)}',
+                'url': target_url,
+                'duration_ms': duration_ms
+            }
+    
     def get_emails_by_subject(self, subject_contains: str, max_age_minutes: int = 10) -> List[Dict]:
         """
         Get emails containing specific text in subject
