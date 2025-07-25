@@ -24,6 +24,7 @@ graph TB
         G[Email Attachment Client<br/>Graph API Integration]
         H[File Processor<br/>Content Validation]
         I[SharePoint Uploader<br/>Graph API Integration]
+        N[Notification Service<br/>Teams & Email Alerts]
     end
     
     subgraph "SharePoint Online"
@@ -36,6 +37,11 @@ graph TB
         M[Quotation Bot<br/>Price Lookup & Analysis]
     end
     
+    subgraph "Notification Channels"
+        O[Microsoft Teams<br/>Quotation Teams Channel]
+        P[Email Notifications<br/>pgits@hexalinks.com]
+    end
+    
     A --> B
     B --> C
     C --> D
@@ -45,6 +51,9 @@ graph TB
     F --> H
     H --> I
     I --> J
+    I --> N
+    N --> O
+    N --> P
     J --> K
     K --> L
     L --> M
@@ -53,6 +62,9 @@ graph TB
     style G fill:#f3e5f5
     style H fill:#fff3e0
     style I fill:#e8f5e8
+    style N fill:#fff9c4
+    style O fill:#e3f2fd
+    style P fill:#f1f8e9
 ```
 
 ## Detailed Component Flow
@@ -113,6 +125,37 @@ sequenceDiagram
     Note over Copilot: AI processes pricing data
 ```
 
+### 3. Notification Flow
+
+```mermaid
+sequenceDiagram
+    participant Service as Knowledge Update Service
+    participant Teams as Microsoft Teams
+    participant Email as Email Service
+    participant User as Operations Team
+    
+    Service->>Service: File upload completed
+    Note over Service: Success or failure status
+    
+    Service->>Service: Generate notification content
+    Note over Service: File details, processing time, errors
+    
+    par Teams Notification
+        Service->>Teams: Send webhook message
+        Note over Service,Teams: Rich card with file details
+        Teams-->>Service: Delivery confirmation
+        Teams->>User: Display in Quotation Teams channel
+    and Email Notification
+        Service->>Email: Send notification email
+        Note over Service,Email: HTML email with details
+        Email-->>Service: Delivery confirmation
+        Email->>User: Email to pgits@hexalinks.com
+    end
+    
+    User->>User: Review notification
+    Note over User: Monitor upload status & errors
+```
+
 ## API Endpoints & Functionality
 
 ### Core Service Endpoints
@@ -124,6 +167,7 @@ sequenceDiagram
 | `/upload-to-sharepoint` | POST | Upload file to SharePoint | `filename`, `overwrite`, `cleanup_old` |
 | `/sharepoint-files` | GET | List existing files | `pattern` |
 | `/attachment-history` | GET | Email attachment history | `days`, `limit` |
+| `/test-notifications` | POST | Test notification system | - |
 
 ### Workflow Automation
 

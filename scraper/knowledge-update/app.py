@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from email_attachment_client import EmailAttachmentClient
 from file_processor import FileProcessor
 from sharepoint_uploader import SharePointUploader
+from notification_service import NotificationService
 
 # Load environment variables from .env file
 load_dotenv()
@@ -33,6 +34,7 @@ app = Flask(__name__)
 email_client = None
 file_processor = None
 sharepoint_uploader = None
+notification_service = None
 
 def validate_environment():
     """Validate required environment variables"""
@@ -49,7 +51,7 @@ def validate_environment():
 
 def initialize_clients():
     """Initialize all service clients"""
-    global email_client, file_processor, sharepoint_uploader
+    global email_client, file_processor, sharepoint_uploader, notification_service
     
     if not validate_environment():
         return False
@@ -78,6 +80,9 @@ def initialize_clients():
             folder_path=os.getenv('SHAREPOINT_FOLDER_PATH', 'Shared Documents/Quotations-Team-Channel')
         )
         
+        # Initialize notification service
+        notification_service = NotificationService()
+        
         logger.info("✅ All clients initialized successfully")
         return True
         
@@ -89,7 +94,7 @@ def initialize_clients():
 def health_check():
     """Health check endpoint for container probes"""
     try:
-        if not all([email_client, file_processor, sharepoint_uploader]):
+        if not all([email_client, file_processor, sharepoint_uploader, notification_service]):
             raise Exception("Clients not initialized")
         
         # Test email connection
@@ -101,7 +106,8 @@ def health_check():
             'message': 'Knowledge update service ready',
             'email_connected': True,
             'clients_initialized': True,
-        'sharepoint_connected': sharepoint_uploader.test_connection() if sharepoint_uploader else False
+            'sharepoint_connected': sharepoint_uploader.test_connection() if sharepoint_uploader else False,
+            'notification_service_ready': notification_service is not None
         }), 200
         
     except Exception as e:
@@ -117,7 +123,7 @@ def readiness_check():
     return jsonify({
         'status': 'ready',
         'timestamp': datetime.now().isoformat(),
-        'clients_ready': all([email_client, file_processor, sharepoint_uploader])
+        'clients_ready': all([email_client, file_processor, sharepoint_uploader, notification_service])
     }), 200
 
 @app.route('/latest-attachment', methods=['GET'])
@@ -193,12 +199,32 @@ def get_latest_attachment():
                 file_content
             )
             if processed_content:
+                start_time = datetime.now()
                 upload_result = sharepoint_uploader.upload_file(
                     filename=attachment_info['filename'],
                     content=processed_content,
                     delete_previous=delete_previous  # Use configurable parameter
                 )
+                processing_time = (datetime.now() - start_time).total_seconds()
                 response_data['sharepoint_upload'] = upload_result
+                
+                # Send notification if notification service is available
+                if notification_service:
+                    try:
+                        notification_result = notification_service.send_upload_notification(
+                            success=upload_result.get('success', False),
+                            filename=attachment_info['filename'],
+                            final_filename=upload_result.get('final_filename'),
+                            error_message=upload_result.get('error') if not upload_result.get('success') else None,
+                            file_size=len(file_content),
+                            sharepoint_url=upload_result.get('sharepoint_url'),
+                            deleted_files=upload_result.get('deleted_files', []),
+                            processing_time=processing_time
+                        )
+                        response_data['notification_result'] = notification_result
+                    except Exception as notify_error:
+                        logger.warning(f"⚠️ Notification failed: {notify_error}")
+                        response_data['notification_error'] = str(notify_error)
         
         return jsonify(response_data), 200
         
@@ -327,17 +353,37 @@ def upload_to_sharepoint():
         
         # Upload to SharePoint with automatic previous file deletion
         logger.info(f"📤 Uploading to SharePoint")
+        start_time = datetime.now()
         upload_result = sharepoint_uploader.upload_file(
             filename=filename,
             content=processed_content,
             overwrite=overwrite,
             delete_previous=delete_previous  # Use configurable parameter
         )
+        processing_time = (datetime.now() - start_time).total_seconds()
         
         # Additional bulk cleanup if requested (for older files beyond just the previous one)
         cleanup_result = None
         if cleanup_old and upload_result.get('success'):
             cleanup_result = sharepoint_uploader.cleanup_old_files(keep_latest=2)  # Keep only current + 1 backup
+        
+        # Send notification if notification service is available
+        notification_result = None
+        if notification_service:
+            try:
+                notification_result = notification_service.send_upload_notification(
+                    success=upload_result.get('success', False),
+                    filename=filename,
+                    final_filename=upload_result.get('final_filename'),
+                    error_message=upload_result.get('error') if not upload_result.get('success') else None,
+                    file_size=len(file_content),
+                    sharepoint_url=upload_result.get('sharepoint_url'),
+                    deleted_files=upload_result.get('deleted_files', []),
+                    processing_time=processing_time
+                )
+            except Exception as notify_error:
+                logger.warning(f"⚠️ Notification failed: {notify_error}")
+                notification_result = {'error': str(notify_error)}
         
         return jsonify({
             'success': True,
@@ -346,6 +392,7 @@ def upload_to_sharepoint():
             'processed_size': len(processed_content),
             'upload_result': upload_result,
             'cleanup_result': cleanup_result,
+            'notification_result': notification_result,
             'timestamp': datetime.now().isoformat()
         }), 200
         
@@ -496,6 +543,33 @@ def power_automate_webhook():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/test-notifications', methods=['POST'])
+def test_notifications():
+    """
+    Test notification system with sample data
+    """
+    try:
+        if not notification_service:
+            raise Exception("Notification service not initialized")
+        
+        logger.info("🧪 Testing notification system")
+        
+        result = notification_service.test_notifications()
+        
+        return jsonify({
+            'success': True,
+            'notification_result': result,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error testing notifications: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/status', methods=['GET'])
 def get_status():
     """Get service status"""
@@ -503,11 +577,11 @@ def get_status():
         'status': 'running',
         'service': 'knowledge-update-service',
         'timestamp': datetime.now().isoformat(),
-        'clients_initialized': all([email_client, file_processor, sharepoint_uploader]),
+        'clients_initialized': all([email_client, file_processor, sharepoint_uploader, notification_service]),
         'endpoints': [
             '/health', '/ready', '/latest-attachment', '/attachment-history',
             '/upload-to-sharepoint', '/sharepoint-files', '/sharepoint-cleanup',
-            '/webhook/power-automate', '/status'
+            '/webhook/power-automate', '/test-notifications', '/status'
         ]
     }), 200
 
@@ -529,6 +603,7 @@ if __name__ == "__main__":
     logger.info("  DELETE /sharepoint-files/<filename> - Delete specific file from SharePoint")
     logger.info("  POST /sharepoint-cleanup - Clean up old files in SharePoint")
     logger.info("  POST /webhook/power-automate - Power Automate webhook")
+    logger.info("  POST /test-notifications - Test notification system")
     logger.info("  GET /status - Get service status")
     
     # Run Flask app

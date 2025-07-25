@@ -13,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY app.py email_attachment_client.py file_processor.py copilot_updater.py sharepoint_uploader.py ./
+COPY app.py email_attachment_client.py file_processor.py copilot_updater.py sharepoint_uploader.py notification_service.py ./
 
 # Copy environment file (must exist before build)
 COPY .env .env
