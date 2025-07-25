@@ -347,41 +347,48 @@ class EmailAttachmentClient:
         
         # Calculate time filter
         cutoff_time = datetime.now() - timedelta(days=days_back)
-        cutoff_time_str = cutoff_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         
         history = []
         
-        for sender in self.td_synnex_senders:
-            if len(history) >= limit:
-                break
-                
-            params = {
-                '$filter': f"from/emailAddress/address eq '{sender}' and hasAttachments eq true",
-                '$orderby': 'receivedDateTime desc',
-                '$top': limit * 2,  # Get more to filter through
-                '$select': 'id,subject,receivedDateTime,hasAttachments,sender'
-            }
+        # Use the same approach as get_latest_td_synnex_attachment - get all messages then filter
+        # This avoids OData $filter issues that cause 400 Bad Request in some environments
+        params = {
+            '$orderby': 'receivedDateTime desc',
+            '$top': limit * 10,  # Get more messages to filter through
+            '$select': 'id,subject,receivedDateTime,hasAttachments,sender'
+        }
+        
+        try:
+            result = self._make_graph_request(f"users/{self.user_email}/messages", params=params)
+            messages = result.get('value', [])
             
-            try:
-                result = self._make_graph_request(f"users/{self.user_email}/messages", params=params)
-                messages = result.get('value', [])
+            logger.info(f"📧 Found {len(messages)} emails to check")
+            
+            for message in messages:
+                if len(history) >= limit:
+                    break
                 
-                for message in messages:
-                    if len(history) >= limit:
-                        break
+                # Check if message has attachments
+                if not message.get('hasAttachments', False):
+                    continue
                     
-                    # Check if message is within time window
-                    received_time = datetime.fromisoformat(message.get('receivedDateTime', '').replace('Z', '+00:00'))
-                    if received_time < cutoff_time:
-                        continue
+                # Check if message is from TD SYNNEX
+                sender_address = message.get('sender', {}).get('emailAddress', {}).get('address', '').lower()
+                if not any(td_sender.lower() in sender_address for td_sender in self.td_synnex_senders):
+                    continue
+                    
+                # Check if message is within time window
+                received_time = datetime.fromisoformat(message.get('receivedDateTime', '').replace('Z', '+00:00'))
+                if received_time < cutoff_time:
+                    continue
                         
-                    attachment_info = self._check_message_for_td_synnex_files(message)
-                    if attachment_info:
-                        history.append(attachment_info)
+                attachment_info = self._check_message_for_td_synnex_files(message)
+                if attachment_info:
+                    history.append(attachment_info)
                         
-            except Exception as e:
-                logger.error(f"❌ Error getting history from {sender}: {e}")
-                continue
+        except Exception as e:
+            logger.error(f"❌ Error getting attachment history: {e}")
+            return []
         
         # Sort by received time (newest first)
         history.sort(key=lambda x: x['received_time'], reverse=True)

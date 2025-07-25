@@ -85,10 +85,11 @@ curl "http://localhost:5001/verification-code?sender=do_not_reply@tdsynnex.com&i
 - TD SYNNEX email server processing time
 
 ### How System Handles Delays
-- **30-second intervals**: Between email checks
-- **5 retry attempts**: Maximum monitoring cycles
+- **60-second initial wait**: For first 2FA email to arrive after scraper starts
+- **90-second intervals**: Between email checks (extended for full pipeline)
+- **6 retry attempts**: Maximum monitoring cycles
 - **Ignore time windows**: Processes all available codes
-- **Automatic resubmission**: If container wasn't ready
+- **Pipeline awareness**: TD SYNNEX → Email Server → Microsoft → Graph API → Our Service
 
 ## System Flow
 
@@ -178,10 +179,12 @@ curl -X POST http://td-synnex-scraper-enhanced.eastus.azurecontainer.io:5001/2fa
 - **Azure**: Environment variables in container deployment
 
 ### Key Settings
-- **Email Check Delay**: 30 seconds (configurable in startup script)
-- **Max Retry Attempts**: 5 attempts (configurable)
+- **Initial Wait**: 60 seconds (for first 2FA email arrival)
+- **Email Check Delay**: 90 seconds (extended for full email pipeline)
+- **Max Retry Attempts**: 6 attempts (configurable)
 - **Time Window**: Ignored (processes all available codes)
 - **Container URL**: Azure container endpoint
+- **Total Max Wait Time**: ~510 seconds (~8.5 minutes) for complete email delivery
 
 ## Security Notes
 
