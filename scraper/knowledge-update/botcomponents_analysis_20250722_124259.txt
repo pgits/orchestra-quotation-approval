@@ -1,0 +1,85 @@
+================================================================================
+DATAVERSE BOTCOMPONENTS ANALYSIS REPORT
+================================================================================
+
+Analysis Date: 2025-07-22 12:42:59
+Dataverse URL: https://org30fde4ed.crm.dynamics.com
+Target Agent: Nate's Hardware Buddy v.1
+
+1. COMPONENT TYPE SUMMARY
+----------------------------------------
+Total Components: 639
+
+Component Type 10 (Knowledge Sources/Files):
+  Total: 550
+  With Content: 0 (0.0%)
+  Knowledge Candidate: Yes
+
+Component Type 9 (Variables/Settings):
+  Total: 75
+  With Content: 0 (0.0%)
+  Knowledge Candidate: No
+
+Component Type 2 (Topics/Dialogs):
+  Total: 5
+  With Content: 5 (100.0%)
+  Knowledge Candidate: Yes
+
+Component Type 6 (Unknown):
+  Total: 2
+  With Content: 0 (0.0%)
+  Knowledge Candidate: No
+
+Component Type 7 (Entities):
+  Total: 2
+  With Content: 0 (0.0%)
+  Knowledge Candidate: No
+
+Component Type 0 (Unknown):
+  Total: 1
+  With Content: 1 (100.0%)
+  Knowledge Candidate: Yes
+
+Component Type 4 (Unknown):
+  Total: 1
+  With Content: 0 (0.0%)
+  Knowledge Candidate: No
+
+Component Type 8 (Unknown):
+  Total: 1
+  With Content: 0 (0.0%)
+  Knowledge Candidate: No
+
+Component Type 15 (Triggers/Events):
+  Total: 1
+  With Content: 0 (0.0%)
+  Knowledge Candidate: No
+
+Component Type 16 (Actions/Skills):
+  Total: 1
+  With Content: 0 (0.0%)
+  Knowledge Candidate: No
+
+2. KNOWLEDGE COMPONENT ANALYSIS
+----------------------------------------
+Components with Content: 6
+
+Recommended Knowledge Storage Types:
+  Type 0: Score 70.0/100
+    Large Content: 100.0%
+    File References: 0.0%
+    Knowledge Keywords: 100.0%
+
+3. COPILOT AGENT COMPONENTS
+----------------------------------------
+No components found related to the target agent.
+
+4. RECOMMENDATIONS FOR TD SYNNEX FILE UPLOAD
+--------------------------------------------------
+Recommended Component Type: 0
+Confidence Score: 70.0/100
+
+Next Steps:
+1. Use component type {best_type['component_type']} for TD SYNNEX file uploads
+2. Monitor existing knowledge components for content structure patterns
+3. Test with small files before bulk upload

@@ -1,0 +1,116 @@
+Conversational boosting.1 backup
+kind: AdaptiveDialog
+inputs:
+  - kind: AutomaticTaskInput
+    propertyName: Answer
+    description: the user's entire response coming into this trigger.
+    entity: StringPrebuiltEntity
+    shouldPromptUser: false
+
+beginDialog:
+  kind: OnUnknownIntent
+  id: main
+  priority: 1
+  actions:
+    - kind: SearchAndSummarizeContent
+      id: search-content
+      autoSend: false
+      variable: Topic.Answer
+      userInput: =System.Activity.Text
+      additionalInstructions: Using the Microsoft Surface models, in a very nice way provide a quotation to the user that allows them to select 1 of 3 different models located and then have them verified by human-in-the-loop.
+      fileSearchDataSource:
+        searchFilesMode:
+          kind: DoNotSearchFiles
+
+      knowledgeSources:
+        kind: SearchSpecificKnowledgeSources
+
+      responseCaptureType: TextOnly
+
+    - kind: ConditionGroup
+      id: has-answer-conditions
+      conditions:
+        - id: has-answer
+          condition: =!IsBlank(Topic.Answer)
+          actions:
+            - kind: SetVariable
+              id: setVariable_KKjwSf
+              variable: Global.QuotationContext
+              value: =Topic.Answer
+
+            - kind: SendActivity
+              id: sendActivity_yfWe1M
+              activity:
+                attachments:
+                  - kind: AdaptiveCardTemplate
+                    cardContent: |-
+                      ={
+                        type: "AdaptiveCard",
+                        '$schema': "https://adaptivecards.io/schemas/adaptive-card.json",
+                        version: "1.5",
+                        body: [
+                          {
+                            type: "Container",
+                            items: [
+                              {
+                                type: "ColumnSet"
+                              }
+                            ]
+                          },
+                          {
+                            type: "ColumnSet",
+                            columns: [
+                              {
+                                type: "Column",
+                                width: "stretch",
+                                items: [
+                                  {
+                                    type: "TextBlock",
+                                    text: "Human in the loop, verify this quotation",
+                                    wrap: true
+                                  }
+                                ]
+                              }
+                             ]
+                          },
+                          {
+                            type: "Input.Text",
+                            label: "Email Address",
+                            placeholder: "pgits@hexalinks.com",
+                            id: "emailId",
+                            style: "Email",
+                            value: "pgits@hexalinks.com"
+                          },
+                          {
+                            type: "RichTextBlock",
+                            inlines: [
+                              {
+                                type: "TextRun",
+                                text: Topic.Answer
+                              }
+                            ],
+                            horizontalAlignment: "Center",
+                            id: "Body"
+                          },
+                          {
+                            type: "ActionSet",
+                            actions: [
+                              {
+                                type: "Action.Submit",
+                                title: "Action.Submit",
+                                id: "SendEmailButton",
+                                tooltip: "hit to send email",
+                                iconUrl: "icon:Mail"
+                              }       
+                            ]
+                          }
+                        ]
+                      }
+
+            - kind: SendActivity
+              id: sendActivity_bQNHkH
+              activity: "{Topic.Answer}"
+
+            - kind: EndDialog
+              id: end-topic
+              clearTopicQueue: true
